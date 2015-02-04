@@ -724,7 +724,6 @@ ExprPtr Parser::ParseExprArraySlice(Pos pos, ExprPtr left, ExprPtr first)
 	throw logic_error("not implemented");
 }
 
-// TODO: Mostly untested, works on valid input.
 ExprPtr Parser::ParseExprListComprehension(Pos pos, ExprPtr first)
 {
 	auto expr = new ExprListComprehension;
@@ -747,9 +746,17 @@ ExprPtr Parser::ParseExprListComprehension(Pos pos, ExprPtr first)
 
 			expr->generators.push_back(gen);
 		}
-		else
+		else if (CanBeExpr())
 		{
 			expr->filters.push_back(ParseExpr());
+		}
+		else
+		{
+			m_diag
+				<< m_token.range.beg
+				<< Error
+				<< ParseExpectedFilterOrGenerator
+				<< DiagEnd;
 		}
 
 		if (m_token.type == TokComma)
@@ -876,7 +883,6 @@ StmtPtr Parser::ParseStmtDoWhile()
 	return StmtPtr(stmt);
 }
 
-// TODO: Mostly untested, works on valid input.
 StmtPtr Parser::ParseStmtFor()
 {
 	auto stmt = new StmtFor;
@@ -1052,7 +1058,7 @@ StmtPtr Parser::ParseStmtVarDecl()
 			if (!stmt->var)
 			{
 				m_diag
-					<< id.range.beg
+					<< id.range
 					<< Error
 					<< ParseConstNotInitialized
 					<< DiagEnd;
@@ -1085,7 +1091,6 @@ StmtPtr Parser::ParseStmtVarDecl()
 	return StmtPtr(stmt);
 }
 
-// TODO: Mostly untested, works on valid input.
 StmtPtr Parser::ParseStmtSwitch()
 {
 	auto stmt = new StmtSwitch;
@@ -1105,22 +1110,25 @@ StmtPtr Parser::ParseStmtSwitch()
 			EatToken();
 			current.def = false;
 			current.cond = ParseExpr();
+			EatToken(TokColon);
 		}
 		else if (m_token.type == KwDefault)
 		{
 			EatToken();
 			current.def = true;
+			EatToken(TokColon);
 		}
 		else
 		{
-			throw logic_error("not implemented gosh");
+			m_diag
+				<< m_token.range.beg
+				<< Error
+				<< ParseExpectedSwitchCase
+				<< DiagEnd;
 		}
-
-		EatToken(TokColon);
 
 		while (true)
 		{
-			// this is silly...
 			switch (m_token.type)
 			{
 			case TokEndOfFile:
