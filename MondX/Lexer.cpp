@@ -143,9 +143,10 @@ Token &Lexer::MakeLineComment()
 
 Token &Lexer::MakeBlockComment()
 {
-	m_token.type = TokBlockComment;
-	m_token.range.beg = m_pos;
-	m_token.slice.beg = m_source.Position();
+	Token token;
+	token.type = TokBlockComment;
+	token.range.beg = m_pos;
+	token.slice.beg = m_source.Position();
 
 	// Skip '/*'
 	Advance();
@@ -156,7 +157,7 @@ Token &Lexer::MakeBlockComment()
 		if (IsEof(m_char))
 		{
 			m_diag
-				<< Range(m_token.range.beg, m_pos)
+				<< Range(token.range.beg, m_pos)
 				<< Error
 				<< LexUnterminatedBlockComment
 				<< DiagEnd;
@@ -177,8 +178,10 @@ Token &Lexer::MakeBlockComment()
 		Advance();
 	}
 
-	m_token.range.end = m_pos;
-	m_token.slice.end = m_source.Position();
+	token.range.end = m_pos;
+	token.slice.end = m_source.Position();
+
+	m_token = token;
 	return m_token;
 }
 
