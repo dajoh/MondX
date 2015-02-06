@@ -1,5 +1,7 @@
 if (WIN32)
-	set (MONDX_WIN32_SOURCES DiagPrinterFancy.cpp DiagPrinterFancy.hpp)
+	set (MONDX_PLATFORM_SOURCES DiagPrinterFancyWin32.cpp DiagPrinterFancyWin32.hpp)
+else()
+	set (MONDX_PLATFORM_SOURCES DiagPrinterFancyUnix.cpp DiagPrinterFancyUnix.hpp)
 endif()
 
 add_library (MondX
@@ -10,6 +12,8 @@ add_library (MondX
 	DiagBuilder.hpp
 	DiagMessage.cpp
 	DiagMessage.hpp
+	DiagPrinterFancyCore.cpp
+	DiagPrinterFancyCore.hpp
 	DiagPrinterTool.cpp
 	DiagPrinterTool.hpp
 	Lexer.cpp
@@ -27,4 +31,4 @@ add_library (MondX
 	Util.hpp
 	Visitor.cpp
 	Visitor.hpp
-	${MONDX_WIN32_SOURCES})
+	${MONDX_PLATFORM_SOURCES})

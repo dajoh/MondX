@@ -4,7 +4,9 @@
 #include "../MondX/DiagPrinterTool.hpp"
 
 #ifdef _WIN32
-#include "../MondX/DiagPrinterFancy.hpp"
+#include "../MondX/DiagPrinterFancyWin32.hpp"
+#else
+#include "../MondX/DiagPrinterFancyUnix.hpp"
 #endif
 
 using namespace std;
@@ -36,19 +38,20 @@ int main(int argc, char *argv[])
 	}
 
 	string str((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
+
 	StringSource src(str.c_str());
+	DiagObserver obs;
 
-	DiagObserver observer = DiagPrinterTool();
-
-	if (argc != 3 || strcmp(argv[1], "-ftool") != 0)
+	if (argc == 3 && strcmp(argv[1], "-ftool") == 0)
 	{
-		#ifdef _WIN32
-		observer = DiagPrinterFancy(src);
-		#endif
+		obs = DiagPrinterTool();
+	}
+	else
+	{
+		obs = DiagPrinterFancy(src);
 	}
 
-	DiagBuilder diag(observer);
-
+	DiagBuilder diag(obs);
 	Lexer lexer(diag, src);
 	Parser parser(diag, src, lexer);
 	Sema sema(diag);
