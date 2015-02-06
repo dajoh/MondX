@@ -164,7 +164,7 @@ Token &Lexer::MakeBlockComment()
 		}
 		else if (m_char == '/' && m_peek == '*')
 		{
-			throw logic_error("not implemented");
+			MakeBlockComment();
 		}
 		else if (m_char == '*' && m_peek == '/')
 		{
