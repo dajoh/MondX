@@ -32,6 +32,8 @@ namespace Mond
 		SemaYieldNotInSequence,
 		SemaLoopControlNotInLoop,
 		SemaCaseValueNotConstant,
+		SemaDuplicateCaseValue,
+		SemaDuplicateDefaultCase,
 	};
 
 	const char *GetDiagMessageFormat(DiagMessage msg);

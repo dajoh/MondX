@@ -1109,19 +1109,20 @@ StmtPtr Parser::ParseStmtSwitch()
 	while (m_token.type != TokRightBrace && m_token.type != TokEndOfFile)
 	{
 		StmtSwitch::Case current;
+		current.headRange.beg = m_token.range.beg;
 
 		if (m_token.type == KwCase)
 		{
 			EatToken();
 			current.def = false;
 			current.value = ParseExpr();
-			EatToken(TokColon);
+			current.headRange.end = EatToken(TokColon).range.end;
 		}
 		else if (m_token.type == KwDefault)
 		{
 			EatToken();
 			current.def = true;
-			EatToken(TokColon);
+			current.headRange.end = EatToken(TokColon).range.end;
 		}
 		else
 		{

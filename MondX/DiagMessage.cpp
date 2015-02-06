@@ -57,6 +57,10 @@ const char *Mond::GetDiagMessageFormat(DiagMessage msg)
 		return "%s can only be used in loops";
 	case SemaCaseValueNotConstant:
 		return "case value not a constant";
+	case SemaDuplicateCaseValue:
+		return "duplicate case, already defined at %d:%d";
+	case SemaDuplicateDefaultCase:
+		return "duplicate default case, already defined at %d:%d";
 	}
 
 	throw invalid_argument("unknown diagnostic message");

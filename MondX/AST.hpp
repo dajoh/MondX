@@ -271,6 +271,7 @@ namespace Mond
 		struct Case
 		{
 			bool def;
+			Range headRange;
 			ExprPtr value;
 			StmtPtrList body;
 		};

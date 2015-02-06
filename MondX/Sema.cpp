@@ -157,18 +157,35 @@ void Sema::Visit(StmtSwitch *stmt)
 	{
 		AcceptChild(this, stmt->value.get());
 
+		Pos defaultPos;
+
 		for (auto switchCase : stmt->cases)
 		{
 			// TODO: Check case uniqueness.
 			// TODO: Fold values before checking that they're constant.
 
-			if (switchCase.value && !switchCase.value->IsConstant())
+			if (switchCase.def && defaultPos.IsValid())
+			{
+				m_diag
+					<< switchCase.headRange
+					<< Error
+					<< SemaDuplicateDefaultCase
+					<< defaultPos.line
+					<< defaultPos.column
+					<< DiagEnd;
+			}
+			else if (switchCase.value && !switchCase.value->IsConstant())
 			{
 				m_diag
 					<< switchCase.value->range
 					<< Error
 					<< SemaCaseValueNotConstant
 					<< DiagEnd;
+			}
+
+			if (!defaultPos.IsValid() && switchCase.def)
+			{
+				defaultPos = switchCase.headRange.beg;
 			}
 
 			PushScope(Scope::Block);
