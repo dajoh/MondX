@@ -35,6 +35,13 @@ DiagBuilder &DiagBuilder::operator<<(DiagMessage m)
 	return *this;
 }
 
+DiagBuilder &DiagBuilder::operator<<(int n)
+{
+	WriteUntilFormatter('d');
+	m_msg << n;
+	return *this;
+}
+
 DiagBuilder &DiagBuilder::operator<<(uint32_t c)
 {
 	WriteUntilFormatter('c');
@@ -58,7 +65,7 @@ DiagBuilder &DiagBuilder::operator<<(TokenType t)
 	return *this;
 }
 
-DiagBuilder &DiagBuilder::operator<<(const char *s)
+DiagBuilder &DiagBuilder::operator<<(const string &s)
 {
 	WriteUntilFormatter('s');
 	m_msg << s;

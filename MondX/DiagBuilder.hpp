@@ -23,9 +23,10 @@ namespace Mond
 		DiagBuilder &operator<<(Severity s);
 		DiagBuilder &operator<<(DiagMessage m);
 
+		DiagBuilder &operator<<(int n);
 		DiagBuilder &operator<<(uint32_t c);
 		DiagBuilder &operator<<(TokenType t);
-		DiagBuilder &operator<<(const char *s);
+		DiagBuilder &operator<<(const string &s);
 
 		DiagBuilder &operator<<(DiagSentinel b);
 	private:

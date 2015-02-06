@@ -79,6 +79,7 @@
     <ClInclude Include="Lexer.hpp" />
     <ClInclude Include="OperatorUtil.hpp" />
     <ClInclude Include="Parser.hpp" />
+    <ClInclude Include="Sema.hpp" />
     <ClInclude Include="Source.hpp" />
     <ClInclude Include="Token.hpp" />
     <ClInclude Include="Util.hpp" />
@@ -93,6 +94,7 @@
     <ClCompile Include="Lexer.cpp" />
     <ClCompile Include="OperatorUtil.cpp" />
     <ClCompile Include="Parser.cpp" />
+    <ClCompile Include="Sema.cpp" />
     <ClCompile Include="Source.cpp" />
     <ClCompile Include="Token.cpp" />
     <ClCompile Include="Visitor.cpp" />

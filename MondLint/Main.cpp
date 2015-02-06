@@ -1,4 +1,5 @@
 #include <fstream>
+#include "../MondX/Sema.hpp"
 #include "../MondX/Parser.hpp"
 #include "../MondX/DiagPrinterTool.hpp"
 #include "../MondX/DiagPrinterFancy.hpp"
@@ -48,8 +49,11 @@ int main(int argc, char *argv[])
 	}
 
 	DiagBuilder diag(observer);
+
 	Lexer lexer(diag, src);
 	Parser parser(diag, src, lexer);
-	parser.ParseFile();
+	Sema sema(diag);
+
+	sema.Run(parser.ParseFile());
 	return 0;
 }

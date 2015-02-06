@@ -9,21 +9,36 @@ namespace Mond
 {
 	struct AstNode
 	{
+		virtual ~AstNode() {}
+		virtual void Accept(Visitor *) = 0;
+
 		Pos pos;
 		Range range;
 	};
 
 	struct Expr : public AstNode
 	{
-		virtual ~Expr() {}
-		virtual void Accept(Visitor *) = 0;
 		virtual bool WantsSemi() { return true; }
+		virtual bool IsConstant() { return false; }
 	};
 
 	struct Stmt : public AstNode
 	{
-		virtual ~Stmt() {}
-		virtual void Accept(Visitor *) = 0;
+	};
+
+	struct Decl
+	{
+		enum Type
+		{
+			Variable,
+			Constant,
+			Function,
+			Sequence
+		};
+
+		Type declType;
+		vector<Range> declRanges;
+		vector<string> declNames;
 	};
 
 	typedef shared_ptr<Expr> ExprPtr;
@@ -98,38 +113,31 @@ namespace Mond
 		void Accept(Visitor *v) { v->Visit(this); }
 
 		bool varargs;
+		Decl args;
 		StmtPtr body;
-		vector<string> args;
 	};
 
-	struct ExprFunDecl : public ExprLambda
+	struct ExprFunDecl : public ExprLambda, public Decl
 	{
 		void Accept(Visitor *v) { v->Visit(this); }
 		bool WantsSemi() { return semi; }
 
-		bool fun;
 		bool semi;
-		string name;
 	};
 
-	struct ExprListComprehension : public Expr
+	struct ExprListComprehension : public Expr, public Decl
 	{
 		void Accept(Visitor *v) { v->Visit(this); }
 
-		struct Generator
-		{
-			string name;
-			ExprPtr from;
-		};
-
 		ExprPtr expr;
 		ExprPtrList filters;
-		vector<Generator> generators;
+		ExprPtrList generators;
 	};
 
 	struct ExprNumberLiteral : public Expr
 	{
 		void Accept(Visitor *v) { v->Visit(this); }
+		bool IsConstant() { return true; }
 
 		double value;
 	};
@@ -151,6 +159,7 @@ namespace Mond
 	struct ExprSimpleLiteral : public Expr
 	{
 		void Accept(Visitor *v) { v->Visit(this); }
+		bool IsConstant() { return true; }
 
 		TokenType type;
 	};
@@ -158,6 +167,7 @@ namespace Mond
 	struct ExprStringLiteral : public Expr
 	{
 		void Accept(Visitor *v) { v->Visit(this); }
+		bool IsConstant() { return true; }
 
 		string contents;
 	};
@@ -223,11 +233,10 @@ namespace Mond
 		StmtPtr body;
 	};
 
-	struct StmtForeach : public Stmt
+	struct StmtForeach : public Stmt, public Decl
 	{
 		void Accept(Visitor *v) { v->Visit(this); }
 
-		Slice name;
 		ExprPtr from;
 		StmtPtr body;
 	};
@@ -262,7 +271,7 @@ namespace Mond
 		struct Case
 		{
 			bool def;
-			ExprPtr cond;
+			ExprPtr value;
 			StmtPtrList body;
 		};
 
@@ -270,18 +279,11 @@ namespace Mond
 		vector<Case> cases;
 	};
 
-	struct StmtVarDecl : public Stmt
+	struct StmtVarDecl : public Stmt, public Decl
 	{
 		void Accept(Visitor *v) { v->Visit(this); }
 
-		struct Decl
-		{
-			string name;
-			ExprPtr value;
-		};
-
-		bool var;
-		vector<Decl> decls;
+		ExprPtrList values;
 	};
 
 	struct StmtWhile : public Stmt

@@ -26,6 +26,12 @@ namespace Mond
 		ParseUnterminatedObjectLiteral,
 		ParseUnterminatedFunctionCall,
 		ParseUnterminatedListComprehension,
+
+		SemaUndeclaredId,
+		SemaAlreadyDeclared,
+		SemaYieldNotInSequence,
+		SemaLoopControlNotInLoop,
+		SemaCaseValueNotConstant,
 	};
 
 	const char *GetDiagMessageFormat(DiagMessage msg);

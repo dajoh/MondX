@@ -105,7 +105,7 @@ namespace Mond
 		// -------------------------------------------------------------------
 
 		Pos ParseTerminator(TokenType type, Pos beg, DiagMessage msg);
-		vector<string> ParseArgumentList(bool &varargs);
+		Decl ParseArgumentList(bool &varargs);
 
 		// -------------------------------------------------------------------
 		// Operators

@@ -15,6 +15,7 @@
 namespace Mond
 {
 	using std::hex;
+	using std::pair;
 	using std::deque;
 	using std::string;
 	using std::vector;

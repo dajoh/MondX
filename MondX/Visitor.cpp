@@ -12,18 +12,29 @@ void VisitSelf(Visitor *v, T t)
 	v->Visit((Expr *)t);
 }
 
-template<class T>
-void AcceptChild(Visitor *v, T t)
+void Mond::AcceptChild(Visitor *v, AstNode *n)
 {
-	if (t)
+	if (n)
 	{
-		t->Accept(v);
+		n->Accept(v);
 	}
+}
+
+// ---------------------------------------------------------------------------
+// AST Node
+// ---------------------------------------------------------------------------
+
+void Visitor::Visit(AstNode *node)
+{
 }
 
 // ---------------------------------------------------------------------------
 // Expressions
 // ---------------------------------------------------------------------------
+
+void Visitor::Visit(Expr *expr)
+{
+}
 
 void Visitor::Visit(ExprArrayLiteral *expr)
 {
@@ -31,47 +42,47 @@ void Visitor::Visit(ExprArrayLiteral *expr)
 
 	for (auto elem : expr->elems)
 	{
-		AcceptChild(this, elem);
+		AcceptChild(this, elem.get());
 	}
 }
 
 void Visitor::Visit(ExprArraySlice *expr)
 {
 	VisitSelf(this, expr);
-	AcceptChild(this, expr->left);
-	AcceptChild(this, expr->start);
-	AcceptChild(this, expr->end);
-	AcceptChild(this, expr->step);
+	AcceptChild(this, expr->left.get());
+	AcceptChild(this, expr->start.get());
+	AcceptChild(this, expr->end.get());
+	AcceptChild(this, expr->step.get());
 }
 
 void Visitor::Visit(ExprBinaryOp *expr)
 {
 	VisitSelf(this, expr);
-	AcceptChild(this, expr->left);
-	AcceptChild(this, expr->right);
+	AcceptChild(this, expr->left.get());
+	AcceptChild(this, expr->right.get());
 }
 
 void Visitor::Visit(ExprCall *expr)
 {
 	VisitSelf(this, expr);
-	AcceptChild(this, expr->left);
+	AcceptChild(this, expr->left.get());
 
 	for (auto arg : expr->args)
 	{
-		AcceptChild(this, arg);
+		AcceptChild(this, arg.get());
 	}
 }
 
 void Visitor::Visit(ExprFieldAccess *expr)
 {
 	VisitSelf(this, expr);
-	AcceptChild(this, expr->left);
+	AcceptChild(this, expr->left.get());
 }
 
 void Visitor::Visit(ExprFunDecl *expr)
 {
 	VisitSelf(this, expr);
-	AcceptChild(this, expr->body);
+	AcceptChild(this, expr->body.get());
 }
 
 void Visitor::Visit(ExprId *expr)
@@ -82,29 +93,29 @@ void Visitor::Visit(ExprId *expr)
 void Visitor::Visit(ExprIndexAccess *expr)
 {
 	VisitSelf(this, expr);
-	AcceptChild(this, expr->left);
-	AcceptChild(this, expr->index);
+	AcceptChild(this, expr->left.get());
+	AcceptChild(this, expr->index.get());
 }
 
 void Visitor::Visit(ExprLambda *expr)
 {
 	VisitSelf(this, expr);
-	AcceptChild(this, expr->body);
+	AcceptChild(this, expr->body.get());
 }
 
 void Visitor::Visit(ExprListComprehension *expr)
 {
 	VisitSelf(this, expr);
-	AcceptChild(this, expr->expr);
+	AcceptChild(this, expr->expr.get());
 
 	for (auto filter : expr->filters)
 	{
-		AcceptChild(this, filter);
+		AcceptChild(this, filter.get());
 	}
 
 	for (auto generator : expr->generators)
 	{
-		AcceptChild(this, generator.from);
+		AcceptChild(this, generator.get());
 	}
 }
 
@@ -119,12 +130,12 @@ void Visitor::Visit(ExprObjectLiteral *expr)
 
 	for (auto fn : expr->fnEntries)
 	{
-		AcceptChild(this, fn);
+		AcceptChild(this, fn.get());
 	}
 
 	for (auto kv : expr->kvEntries)
 	{
-		AcceptChild(this, kv.value);
+		AcceptChild(this, kv.value.get());
 	}
 }
 
@@ -141,26 +152,30 @@ void Visitor::Visit(ExprStringLiteral *expr)
 void Visitor::Visit(ExprTernaryOp *expr)
 {
 	VisitSelf(this, expr);
-	AcceptChild(this, expr->cond);
-	AcceptChild(this, expr->thenExpr);
-	AcceptChild(this, expr->elseExpr);
+	AcceptChild(this, expr->cond.get());
+	AcceptChild(this, expr->thenExpr.get());
+	AcceptChild(this, expr->elseExpr.get());
 }
 
 void Visitor::Visit(ExprUnaryOp *expr)
 {
 	VisitSelf(this, expr);
-	AcceptChild(this, expr->value);
+	AcceptChild(this, expr->value.get());
 }
 
 void Visitor::Visit(ExprYield *expr)
 {
 	VisitSelf(this, expr);
-	AcceptChild(this, expr->value);
+	AcceptChild(this, expr->value.get());
 }
 
 // ---------------------------------------------------------------------------
 // Statements
 // ---------------------------------------------------------------------------
+
+void Visitor::Visit(Stmt *stmt)
+{
+}
 
 void Visitor::Visit(StmtBlock *stmt)
 {
@@ -168,7 +183,7 @@ void Visitor::Visit(StmtBlock *stmt)
 
 	for (auto sub : stmt->statements)
 	{
-		AcceptChild(this, sub);
+		AcceptChild(this, sub.get());
 	}
 }
 
@@ -180,35 +195,49 @@ void Visitor::Visit(StmtControl *stmt)
 void Visitor::Visit(StmtDoWhile *stmt)
 {
 	VisitSelf(this, stmt);
-	AcceptChild(this, stmt->body);
-	AcceptChild(this, stmt->cond);
+	AcceptChild(this, stmt->body.get());
+	AcceptChild(this, stmt->cond.get());
+}
+
+void Visitor::Visit(StmtFor *stmt)
+{
+	VisitSelf(this, stmt);
+	AcceptChild(this, stmt->init.get());
+	AcceptChild(this, stmt->cond.get());
+
+	for (auto step : stmt->steps)
+	{
+		AcceptChild(this, step.get());
+	}
+
+	AcceptChild(this, stmt->body.get());
 }
 
 void Visitor::Visit(StmtForeach *stmt)
 {
 	VisitSelf(this, stmt);
-	AcceptChild(this, stmt->from);
-	AcceptChild(this, stmt->body);
+	AcceptChild(this, stmt->from.get());
+	AcceptChild(this, stmt->body.get());
 }
 
 void Visitor::Visit(StmtIfElse *stmt)
 {
 	VisitSelf(this, stmt);
-	AcceptChild(this, stmt->cond);
-	AcceptChild(this, stmt->thenBody);
-	AcceptChild(this, stmt->elseBody);
+	AcceptChild(this, stmt->cond.get());
+	AcceptChild(this, stmt->thenBody.get());
+	AcceptChild(this, stmt->elseBody.get());
 }
 
 void Visitor::Visit(StmtNakedExpr *stmt)
 {
 	VisitSelf(this, stmt);
-	AcceptChild(this, stmt->value);
+	AcceptChild(this, stmt->value.get());
 }
 
 void Visitor::Visit(StmtReturn *stmt)
 {
 	VisitSelf(this, stmt);
-	AcceptChild(this, stmt->value);
+	AcceptChild(this, stmt->value.get());
 }
 
 void Visitor::Visit(StmtSwitch *stmt)
@@ -217,11 +246,11 @@ void Visitor::Visit(StmtSwitch *stmt)
 
 	for (auto subCase : stmt->cases)
 	{
-		AcceptChild(this, subCase.cond);
+		AcceptChild(this, subCase.value.get());
 
 		for (auto subStmt : subCase.body)
 		{
-			AcceptChild(this, subStmt);
+			AcceptChild(this, subStmt.get());
 		}
 	}
 }
@@ -230,15 +259,15 @@ void Visitor::Visit(StmtVarDecl *stmt)
 {
 	VisitSelf(this, stmt);
 
-	for (auto decl : stmt->decls)
+	for (auto value : stmt->values)
 	{
-		AcceptChild(this, decl.value);
+		AcceptChild(this, value.get());
 	}
 }
 
 void Visitor::Visit(StmtWhile *stmt)
 {
 	VisitSelf(this, stmt);
-	AcceptChild(this, stmt->cond);
-	AcceptChild(this, stmt->body);
+	AcceptChild(this, stmt->cond.get());
+	AcceptChild(this, stmt->body.get());
 }

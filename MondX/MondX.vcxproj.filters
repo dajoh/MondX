@@ -53,6 +53,9 @@
     <ClInclude Include="DiagPrinterTool.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Sema.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DiagMessage.cpp">
@@ -86,6 +89,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="DiagPrinterTool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Sema.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

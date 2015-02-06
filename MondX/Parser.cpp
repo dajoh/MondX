@@ -452,15 +452,17 @@ ExprPtr Parser::ParseExprArrayLiteral()
 ExprPtr Parser::ParseExprFunDecl()
 {
 	auto expr = new ExprFunDecl;
-	expr->fun = m_token.type == KwFun;
 	expr->pos = m_token.range.beg;
 	expr->range = m_token.range;
+	expr->declType = m_token.type == KwFun ? Decl::Function : Decl::Sequence;
 
 	EatToken();
 
 	if (m_token.type == TokIdentifier)
 	{
-		expr->name = IdString(EatToken().slice);
+		auto id = EatToken();
+		expr->declNames.push_back(IdString(id.slice));
+		expr->declRanges.push_back(id.range);
 	}
 
 	expr->args = ParseArgumentList(expr->varargs);
@@ -686,10 +688,13 @@ ExprPtr Parser::ParseExprLambda()
 	auto expr = new ExprLambda;
 	expr->pos = m_token.range.beg;
 	expr->range = m_token.range;
-	
+
 	if (m_token.type == TokIdentifier)
 	{
-		expr->args.push_back(IdString(EatToken().slice));
+		auto id = EatToken();
+		expr->args.declType = Decl::Variable;
+		expr->args.declNames.push_back(IdString(id.slice));
+		expr->args.declRanges.push_back(id.range);
 	}
 	else
 	{
@@ -729,6 +734,7 @@ ExprPtr Parser::ParseExprListComprehension(Pos pos, ExprPtr first)
 	auto expr = new ExprListComprehension;
 	expr->pos = pos;
 	expr->expr = first;
+	expr->declType = Decl::Variable;
 	expr->range.beg = pos;
 
 	// Eat colon.
@@ -738,13 +744,11 @@ ExprPtr Parser::ParseExprListComprehension(Pos pos, ExprPtr first)
 	{
 		if (m_token.type == TokIdentifier && Lookahead().type == KwIn)
 		{
-			ExprListComprehension::Generator gen;
-
-			gen.name = IdString(EatToken(TokIdentifier).slice);
+			auto id = EatToken();
+			expr->declNames.push_back(IdString(id.slice));
+			expr->declRanges.push_back(id.range);
 			EatToken(KwIn);
-			gen.from = ParseExpr();
-
-			expr->generators.push_back(gen);
+			expr->generators.push_back(ParseExpr());
 		}
 		else if (CanBeExpr())
 		{
@@ -959,13 +963,16 @@ StmtPtr Parser::ParseStmtForeach()
 	auto stmt = new StmtForeach;
 	stmt->pos = m_token.range.beg;
 	stmt->range = m_token.range;
+	stmt->declType = Decl::Variable;
 
 	EatToken();
 
 	EatToken(TokLeftParen);
 	{
 		EatToken(KwVar);
-		stmt->name = EatToken(TokIdentifier).slice;
+		auto id = EatToken(TokIdentifier);
+		stmt->declNames.push_back(IdString(id.slice));
+		stmt->declRanges.push_back(id.range);
 		EatToken(KwIn);
 		stmt->from = ParseExpr();
 	}
@@ -1038,24 +1045,23 @@ StmtPtr Parser::ParseStmtReturn()
 StmtPtr Parser::ParseStmtVarDecl()
 {
 	auto stmt = new StmtVarDecl;
-	stmt->var = m_token.type == KwVar;
 	stmt->pos = m_token.range.beg;
 	stmt->range = m_token.range;
+	stmt->declType = m_token.type == KwVar ? Decl::Variable : Decl::Constant;
 
 	EatToken();
 
 	while (true)
 	{
 		auto id = EatToken(TokIdentifier);
-
-		StmtVarDecl::Decl decl;
-		decl.name = IdString(id.slice);
+		stmt->declNames.push_back(IdString(id.slice));
+		stmt->declRanges.push_back(id.range);
 
 		if (m_token.type == TokComma || m_token.type == TokSemicolon)
 		{
-			stmt->decls.push_back(decl);
+			stmt->values.push_back(nullptr);
 
-			if (!stmt->var)
+			if (stmt->declType == Decl::Constant)
 			{
 				m_diag
 					<< id.range
@@ -1074,8 +1080,7 @@ StmtPtr Parser::ParseStmtVarDecl()
 		}
 
 		EatToken(OpAssign);
-		decl.value = ParseExpr();
-		stmt->decls.push_back(decl);
+		stmt->values.push_back(ParseExpr());
 
 		if (m_token.type == TokComma)
 		{
@@ -1109,7 +1114,7 @@ StmtPtr Parser::ParseStmtSwitch()
 		{
 			EatToken();
 			current.def = false;
-			current.cond = ParseExpr();
+			current.value = ParseExpr();
 			EatToken(TokColon);
 		}
 		else if (m_token.type == KwDefault)
@@ -1143,6 +1148,8 @@ StmtPtr Parser::ParseStmtSwitch()
 
 			break;
 		}
+
+		stmt->cases.push_back(current);
 	}
 
 	stmt->range.end = EatToken(TokRightBrace).range.end;
@@ -1240,9 +1247,10 @@ Pos Parser::ParseTerminator(TokenType type, Pos beg, DiagMessage msg)
 	return token.range.end;
 }
 
-vector<string> Parser::ParseArgumentList(bool &varargs)
+Decl Parser::ParseArgumentList(bool &varargs)
 {
-	vector<string> args;
+	Decl args;
+	args.declType = Decl::Variable;
 
 	varargs = false;
 
@@ -1258,7 +1266,9 @@ vector<string> Parser::ParseArgumentList(bool &varargs)
 					varargs = true;
 				}
 
-				args.push_back(IdString(EatToken(TokIdentifier).slice));
+				auto id = EatToken(TokIdentifier);
+				args.declNames.push_back(IdString(id.slice));
+				args.declRanges.push_back(id.range);
 
 				if (!varargs && m_token.type == TokComma)
 				{

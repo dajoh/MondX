@@ -46,6 +46,17 @@ const char *Mond::GetDiagMessageFormat(DiagMessage msg)
 		return "unterminated function call";
 	case ParseUnterminatedListComprehension:
 		return "unterminated list comprehension";
+
+	case SemaUndeclaredId:
+		return "undeclared identifier '%s'";
+	case SemaAlreadyDeclared:
+		return "'%s' already declared at %d:%d";
+	case SemaYieldNotInSequence:
+		return "yield can only be used in sequences";
+	case SemaLoopControlNotInLoop:
+		return "%s can only be used in loops";
+	case SemaCaseValueNotConstant:
+		return "case value not a constant";
 	}
 
 	throw invalid_argument("unknown diagnostic message");
