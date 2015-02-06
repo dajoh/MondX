@@ -228,6 +228,8 @@ bool Sema::IsInSeq() const
 			return false;
 		case Scope::Sequence:
 			return true;
+		default:
+			continue;
 		}
 	}
 
@@ -245,6 +247,8 @@ bool Sema::IsInLoop() const
 		case Scope::Function:
 		case Scope::Sequence:
 			return false;
+		default:
+			continue;
 		}
 	}
 

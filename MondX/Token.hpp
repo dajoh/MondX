@@ -7,15 +7,15 @@ namespace Mond
 {
 	enum TokenType
 	{
-#define MOND_TOKEN(n, s) Tok##n,
-#define MOND_PUNCT(n, s) Tok##n,
-#define MOND_KEYWORD(n, s) Kw##n,
-#define MOND_OPERATOR(n, s) Op##n,
-#include "Tokens.inc"
-#undef MOND_TOKEN
-#undef MOND_PUNCT
-#undef MOND_KEYWORD
-#undef MOND_OPERATOR
+	#define MOND_TOKEN(n, s) Tok##n,
+	#define MOND_PUNCT(n, s) Tok##n,
+	#define MOND_KEYWORD(n, s) Kw##n,
+	#define MOND_OPERATOR(n, s) Op##n,
+	#include "Tokens.inc"
+	#undef MOND_TOKEN
+	#undef MOND_PUNCT
+	#undef MOND_KEYWORD
+	#undef MOND_OPERATOR
 	};
 
 	struct Token

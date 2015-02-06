@@ -7,9 +7,9 @@ using namespace Mond;
 // ---------------------------------------------------------------------------
 
 Parser::Parser(DiagBuilder &diag, Source &source, Lexer &lexer) :
-	m_diag(diag),
 	m_lexer(lexer),
-	m_source(source)
+	m_source(source),
+	m_diag(diag)
 {
 	Advance();
 }
@@ -54,10 +54,10 @@ void Parser::More()
 		case TokLineComment:
 		case TokBlockComment:
 			continue;
+		default:
+			m_lookahead.push_back(token);
+			return;
 		}
-
-		m_lookahead.push_back(token);
-		break;
 	}
 }
 
@@ -162,9 +162,9 @@ bool Parser::CanBeExpr()
 	case KwSeq:
 	case KwYield:
 		return true;
+	default:
+		return IsPrefixOperator();
 	}
-
-	return IsPrefixOperator();
 }
 
 // TODO: Associativity.
@@ -312,7 +312,7 @@ ExprPtr Parser::ParseExprParens()
 {
 	if (Lookahead().type == TokIdentifier)
 	{
-		if (Lookahead(1).type == TokComma || Lookahead(1).type == TokRightParen && Lookahead(2).type == OpPointy)
+		if (Lookahead(1).type == TokComma || (Lookahead(1).type == TokRightParen && Lookahead(2).type == OpPointy))
 		{
 			return ParseExprLambda();
 		}
@@ -796,6 +796,8 @@ StmtPtr Parser::ParseStmtCore()
 			<< DiagEnd;
 		EatToken();
 		return nullptr;
+	default:
+		break;
 	}
 
 	switch (m_token.type)
@@ -825,6 +827,8 @@ StmtPtr Parser::ParseStmtCore()
 		return ParseStmtSwitch();
 	case KwWhile:
 		return ParseStmtWhile();
+	default:
+		break;
 	}
 
 	if (CanBeExpr())
@@ -916,7 +920,7 @@ StmtPtr Parser::ParseStmtFor()
 
 				stmt->init = StmtPtr(init);
 			}
-			
+
 			EatToken(TokSemicolon);
 		}
 
@@ -1302,9 +1306,9 @@ bool Parser::IsPrefixOperator() const
 	case OpNot:
 	case OpEllipsis:
 		return true;
+	default:
+		return false;
 	}
-
-	return false;
 }
 
 bool Parser::IsBinaryOperator() const
@@ -1349,9 +1353,10 @@ bool Parser::IsBinaryOperator() const
 
 	case OpPipeline:
 		return true;
-	}
 
-	return false;
+	default:
+		return false;
+	}
 }
 
 bool Parser::IsPostfixOperator() const
@@ -1361,9 +1366,9 @@ bool Parser::IsPostfixOperator() const
 	case OpIncrement:
 	case OpDecrement:
 		return true;
+	default:
+		return false;
 	}
-
-	return false;
 }
 
 Precedence Parser::GetOperatorPrecedence()
@@ -1428,7 +1433,8 @@ Precedence Parser::GetOperatorPrecedence()
 
 	case OpPipeline:
 		return Precedence::Misc;
-	}
 
-	throw logic_error("precedence requested for unknown operator");
+	default:
+		throw logic_error("precedence requested for unknown operator");
+	}
 }
