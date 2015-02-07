@@ -46,6 +46,8 @@ const char *Mond::GetDiagMessageFormat(DiagMessage msg)
 		return "unterminated function call";
 	case ParseUnterminatedListComprehension:
 		return "unterminated list comprehension";
+	case ParseUnterminatedArraySlice:
+		return "unterminated array slice";
 
 	case SemaUndeclaredId:
 		return "undeclared identifier '%s'";

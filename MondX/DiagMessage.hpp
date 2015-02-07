@@ -26,6 +26,7 @@ namespace Mond
 		ParseUnterminatedObjectLiteral,
 		ParseUnterminatedFunctionCall,
 		ParseUnterminatedListComprehension,
+		ParseUnterminatedArraySlice,
 
 		SemaUndeclaredId,
 		SemaAlreadyDeclared,

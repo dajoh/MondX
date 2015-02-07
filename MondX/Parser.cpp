@@ -562,14 +562,32 @@ Expr *Parser::ParseExprIndexAccess(Expr *left)
 	expr->left.reset(left);
 	expr->range = m_token.range;
 
+	EatToken();
+
+	if (m_token.type == TokColon)
+	{
+		auto pos = expr->pos;
+		auto left = expr->left.release();
+		delete expr;
+		return ParseExprArraySlice(pos, left, nullptr);
+	}
+
+	expr->index = ParseExpr();
+
+	if (m_token.type == TokColon)
+	{
+		auto pos = expr->pos;
+		auto left = expr->left.release();
+		auto index = expr->index.release();
+		delete expr;
+		return ParseExprArraySlice(pos, left, index);
+	}
+
 	if (expr->left)
 	{
 		expr->range.beg = expr->left->range.beg;
 	}
 
-	EatToken();
-
-	expr->index = ParseExpr();
 	expr->range.end = EatToken(TokRightBracket).range.end;
 	return expr;
 }
@@ -726,7 +744,40 @@ Expr *Parser::ParseExprCondition()
 
 Expr *Parser::ParseExprArraySlice(Pos pos, Expr *left, Expr *first)
 {
-	throw logic_error("not implemented");
+	auto expr = new ExprArraySlice;
+	expr->pos = pos;
+	expr->left.reset(left);
+	expr->start.reset(first);
+
+	if (expr->left)
+	{
+		expr->range.beg = expr->left->range.beg;
+	}
+
+	EatToken();
+
+	if (m_token.type == TokRightBracket)
+	{
+		expr->range.end = EatToken().range.end;
+		return expr;
+	}
+
+	if (CanBeExpr())
+	{
+		expr->end.reset(ParseExprCore(Precedence::Invalid));
+
+		if (m_token.type == TokRightBracket)
+		{
+			expr->range.end = EatToken().range.end;
+			return expr;
+		}
+	}
+
+	EatToken(TokColon);
+
+	expr->step.reset(ParseExprCore(Precedence::Invalid));
+	expr->range.end = ParseTerminator(TokRightBracket, expr->pos, ParseUnterminatedArraySlice);
+	return expr;
 }
 
 Expr *Parser::ParseExprListComprehension(Pos pos, Expr *first)
