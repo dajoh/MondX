@@ -2,10 +2,13 @@
 
 using namespace Mond;
 
-Sema::Sema(DiagBuilder &diag) : m_scope(new Scope()), m_diag(diag)
+Sema::Sema(DiagBuilder &diag) : m_root(new Scope()), m_diag(diag)
 {
-	m_scope->type = Scope::Block;
-	m_scope->node = nullptr;
+	m_root->type = Scope::Block;
+	m_root->node = nullptr;
+	m_root->parent = nullptr;
+
+	m_scope = m_root.get();
 }
 
 Sema::~Sema()
@@ -14,13 +17,14 @@ Sema::~Sema()
 
 void Sema::PushScope(Scope::Type type, AstNode *node)
 {
-	ScopePtr scope(new Scope());
+	m_scope->children.push_back(ScopePtr(new Scope()));
+
+	auto &scope = m_scope->children.back();
 	scope->type = type;
 	scope->node = node;
 	scope->parent = m_scope;
 
-	m_scope->children.push_back(scope);
-	m_scope = scope;
+	m_scope = scope.get();
 }
 
 void Sema::PopScope()
@@ -30,7 +34,7 @@ void Sema::PopScope()
 
 void Sema::Declare(Decl::Type type, Range range, const string &name, AstNode *node)
 {
-	Scope *scope = m_scope.get();
+	Scope *scope = m_scope;
 	while (scope != nullptr)
 	{
 		auto it = scope->decls.find(name);
@@ -47,7 +51,7 @@ void Sema::Declare(Decl::Type type, Range range, const string &name, AstNode *no
 			break;
 		}
 
-		scope = scope->parent.get();
+		scope = scope->parent;
 	}
 
 	Decl decl;
@@ -88,7 +92,7 @@ void Sema::Visit(ExprFunDecl *)
 
 void Sema::Visit(ExprId *expr)
 {
-	Scope *scope = m_scope.get();
+	Scope *scope = m_scope;
 	while (scope != nullptr)
 	{
 		if (scope->decls.count(expr->name) != 0)
@@ -96,7 +100,7 @@ void Sema::Visit(ExprId *expr)
 			return;
 		}
 
-		scope = scope->parent.get();
+		scope = scope->parent;
 	}
 
 	m_diag
@@ -246,7 +250,7 @@ void Sema::Visit(StmtWhile *)
 
 bool Sema::IsInSeq() const
 {
-	Scope *scope = m_scope.get();
+	Scope *scope = m_scope;
 	while (scope != nullptr)
 	{
 		switch (scope->type)
@@ -259,7 +263,7 @@ bool Sema::IsInSeq() const
 			break;
 		}
 
-		scope = scope->parent.get();
+		scope = scope->parent;
 	}
 
 	return false;
@@ -267,7 +271,7 @@ bool Sema::IsInSeq() const
 
 bool Sema::IsInLoop() const
 {
-	Scope *scope = m_scope.get();
+	Scope *scope = m_scope;
 	while (scope != nullptr)
 	{
 		switch (scope->type)
@@ -281,7 +285,7 @@ bool Sema::IsInLoop() const
 			break;
 		}
 
-		scope = scope->parent.get();
+		scope = scope->parent;
 	}
 
 	return false;

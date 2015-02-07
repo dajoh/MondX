@@ -21,7 +21,6 @@ namespace Mond
 	using std::vector;
 	using std::function;
 	using std::unique_ptr;
-	using std::shared_ptr;
 	using std::logic_error;
 	using std::stringstream;
 	using std::unordered_map;

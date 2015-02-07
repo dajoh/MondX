@@ -22,7 +22,7 @@ namespace Mond
 		AstNode *node;
 	};
 
-	typedef shared_ptr<struct Scope> ScopePtr;
+	typedef unique_ptr<struct Scope> ScopePtr;
 	typedef vector<ScopePtr> ScopePtrList;
 
 	struct Scope
@@ -36,8 +36,8 @@ namespace Mond
 		};
 
 		Type type;
+		Scope *parent;
 		AstNode *node;
-		ScopePtr parent;
 		ScopePtrList children;
 		unordered_map<string, Decl> decls;
 	};
@@ -88,7 +88,8 @@ namespace Mond
 		bool IsInSeq() const;
 		bool IsInLoop() const;
 
-		ScopePtr m_scope;
+		Scope *m_scope;
+		ScopePtr m_root;
 		DiagBuilder &m_diag;
 	};
 
