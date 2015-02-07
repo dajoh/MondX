@@ -1,7 +1,7 @@
 #ifndef MOND_PARSER_HPP
 #define MOND_PARSER_HPP
 
-#include "AST.hpp"
+#include "Sema.hpp"
 #include "Lexer.hpp"
 
 namespace Mond
@@ -27,7 +27,7 @@ namespace Mond
 	class Parser
 	{
 	public:
-		Parser(DiagBuilder &diag, Source &source, Lexer &lexer);
+		Parser(DiagBuilder &diag, Source &source, Lexer &lexer, Sema &sema);
 
 		StmtPtrList ParseFile();
 
@@ -105,7 +105,7 @@ namespace Mond
 		// -------------------------------------------------------------------
 
 		Pos ParseTerminator(TokenType type, Pos beg, DiagMessage msg);
-		Decl ParseArgumentList(bool &varargs);
+		void ParseArgumentList(bool &varargs);
 
 		// -------------------------------------------------------------------
 		// Operators
@@ -117,6 +117,7 @@ namespace Mond
 
 		Precedence GetOperatorPrecedence();
 	private:
+		Sema &m_sema;
 		Lexer &m_lexer;
 		Source &m_source;
 		DiagBuilder &m_diag;

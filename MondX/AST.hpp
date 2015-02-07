@@ -26,21 +26,6 @@ namespace Mond
 	{
 	};
 
-	struct Decl
-	{
-		enum Type
-		{
-			Variable,
-			Constant,
-			Function,
-			Sequence
-		};
-
-		Type declType;
-		vector<Range> declRanges;
-		vector<string> declNames;
-	};
-
 	typedef unique_ptr<Expr> ExprPtr;
 	typedef vector<ExprPtr> ExprPtrList;
 
@@ -113,11 +98,10 @@ namespace Mond
 		void Accept(Visitor *v) { v->Visit(this); }
 
 		bool varargs;
-		Decl args;
 		StmtPtr body;
 	};
 
-	struct ExprFunDecl : public ExprLambda, public Decl
+	struct ExprFunDecl : public ExprLambda
 	{
 		void Accept(Visitor *v) { v->Visit(this); }
 		bool WantsSemi() { return semi; }
@@ -125,7 +109,7 @@ namespace Mond
 		bool semi;
 	};
 
-	struct ExprListComprehension : public Expr, public Decl
+	struct ExprListComprehension : public Expr
 	{
 		void Accept(Visitor *v) { v->Visit(this); }
 
@@ -241,7 +225,7 @@ namespace Mond
 		StmtPtr body;
 	};
 
-	struct StmtForeach : public Stmt, public Decl
+	struct StmtForeach : public Stmt
 	{
 		void Accept(Visitor *v) { v->Visit(this); }
 
@@ -298,7 +282,7 @@ namespace Mond
 		vector<Case> cases;
 	};
 
-	struct StmtVarDecl : public Stmt, public Decl
+	struct StmtVarDecl : public Stmt
 	{
 		void Accept(Visitor *v) { v->Visit(this); }
 

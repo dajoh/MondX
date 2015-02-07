@@ -6,7 +6,8 @@ using namespace Mond;
 // Parser interface
 // ---------------------------------------------------------------------------
 
-Parser::Parser(DiagBuilder &diag, Source &source, Lexer &lexer) :
+Parser::Parser(DiagBuilder &diag, Source &source, Lexer &lexer, Sema &sema) :
+	m_sema(sema),
 	m_lexer(lexer),
 	m_source(source),
 	m_diag(diag)
@@ -275,6 +276,8 @@ Expr *Parser::ParseExprId()
 	expr->name = IdString(m_token.slice);
 	expr->range = m_token.range;
 	EatToken();
+
+	m_sema.Visit(expr);
 	return expr;
 }
 
@@ -285,6 +288,8 @@ Expr *Parser::ParseExprStringLiteral()
 	expr->range = m_token.range;
 	expr->contents = LiteralString(m_token.slice);
 	EatToken();
+
+	m_sema.Visit(expr);
 	return expr;
 }
 
@@ -295,6 +300,8 @@ Expr *Parser::ParseExprNumberLiteral()
 	expr->range = m_token.range;
 	expr->value = LiteralNumber(m_token.slice);
 	EatToken();
+
+	m_sema.Visit(expr);
 	return expr;
 }
 
@@ -305,6 +312,8 @@ Expr *Parser::ParseExprSimpleLiteral()
 	expr->type = m_token.type;
 	expr->range = m_token.range;
 	EatToken();
+
+	m_sema.Visit(expr);
 	return expr;
 }
 
@@ -330,6 +339,7 @@ Expr *Parser::ParseExprParens()
 	{
 		expr->range.beg = beg.range.beg;
 		expr->range.end = end.range.end;
+		expr->Accept(&m_sema);
 	}
 
 	return expr;
@@ -415,6 +425,7 @@ Expr *Parser::ParseExprObjectLiteral()
 	}
 
 	expr->range.end = ParseTerminator(TokRightBrace, expr->pos, ParseUnterminatedObjectLiteral);
+	m_sema.Visit(expr);
 	return expr;
 }
 
@@ -446,26 +457,29 @@ Expr *Parser::ParseExprArrayLiteral()
 	}
 
 	expr->range.end = ParseTerminator(TokRightBracket, expr->pos, ParseUnterminatedArrayLiteral);
+	m_sema.Visit(expr);
 	return expr;
 }
 
 Expr *Parser::ParseExprFunDecl()
 {
+	auto declType = m_token.type == KwFun ? Decl::Function : Decl::Sequence;
+	auto scopeType = m_token.type == KwFun ? Scope::Function : Scope::Sequence;
+
 	auto expr = new ExprFunDecl;
 	expr->pos = m_token.range.beg;
 	expr->range = m_token.range;
-	expr->declType = m_token.type == KwFun ? Decl::Function : Decl::Sequence;
 
 	EatToken();
 
 	if (m_token.type == TokIdentifier)
 	{
 		auto id = EatToken();
-		expr->declNames.push_back(IdString(id.slice));
-		expr->declRanges.push_back(id.range);
+		m_sema.Declare(declType, id.range, IdString(id.slice), expr);
 	}
 
-	expr->args = ParseArgumentList(expr->varargs);
+	SemaScope scope(m_sema, scopeType, expr);
+	ParseArgumentList(expr->varargs);
 
 	if (m_token.type == OpPointy)
 	{
@@ -498,6 +512,7 @@ Expr *Parser::ParseExprFunDecl()
 		expr->range.end = m_token.range.beg;
 	}
 
+	m_sema.Visit(expr);
 	return expr;
 }
 
@@ -522,6 +537,7 @@ Expr *Parser::ParseExprYield()
 		}
 	}
 
+	m_sema.Visit(expr);
 	return expr;
 }
 
@@ -552,6 +568,7 @@ Expr *Parser::ParseExprCall(Expr *left)
 	}
 
 	expr->range.end = ParseTerminator(TokRightParen, expr->pos, ParseUnterminatedFunctionCall);
+	m_sema.Visit(expr);
 	return expr;
 }
 
@@ -589,6 +606,7 @@ Expr *Parser::ParseExprIndexAccess(Expr *left)
 	}
 
 	expr->range.end = EatToken(TokRightBracket).range.end;
+	m_sema.Visit(expr);
 	return expr;
 }
 
@@ -604,6 +622,7 @@ Expr *Parser::ParseExprFieldAccess(Expr *left)
 	auto member = EatToken(TokIdentifier);
 	expr->name = IdString(member.slice);
 	expr->range.end = member.range.end;
+	m_sema.Visit(expr);
 	return expr;
 }
 
@@ -627,6 +646,7 @@ Expr *Parser::ParseExprPrefixOp()
 		expr->range.end = m_token.range.beg;
 	}
 
+	m_sema.Visit(expr);
 	return expr;
 }
 
@@ -646,6 +666,7 @@ Expr *Parser::ParseExprPostfixOp(Expr *left)
 		expr->range.beg = expr->value->range.beg;
 	}
 
+	m_sema.Visit(expr);
 	return expr;
 }
 
@@ -669,6 +690,7 @@ Expr *Parser::ParseExprBinaryOp(Expr *left, Precedence p)
 		expr->range = Range(left->range.beg, expr->pos);
 	}
 
+	m_sema.Visit(expr);
 	return expr;
 }
 
@@ -698,6 +720,7 @@ Expr *Parser::ParseExprTernaryOp(Expr *left)
 		expr->range.end = m_token.range.beg;
 	}
 
+	m_sema.Visit(expr);
 	return expr;
 }
 
@@ -707,16 +730,16 @@ Expr *Parser::ParseExprLambda()
 	expr->pos = m_token.range.beg;
 	expr->range = m_token.range;
 
+	SemaScope scope(m_sema, Scope::Function, expr);
+
 	if (m_token.type == TokIdentifier)
 	{
 		auto id = EatToken();
-		expr->args.declType = Decl::Variable;
-		expr->args.declNames.push_back(IdString(id.slice));
-		expr->args.declRanges.push_back(id.range);
+		m_sema.Declare(Decl::Argument, id.range, IdString(id.slice), expr);
 	}
 	else
 	{
-		expr->args = ParseArgumentList(expr->varargs);
+		ParseArgumentList(expr->varargs);
 	}
 
 	EatToken(OpPointy);
@@ -731,6 +754,7 @@ Expr *Parser::ParseExprLambda()
 		expr->range.end = m_token.range.beg;
 	}
 
+	m_sema.Visit(expr);
 	return expr;
 }
 
@@ -739,6 +763,12 @@ Expr *Parser::ParseExprCondition()
 	EatToken(TokLeftParen);
 	auto expr = ParseExprCore(Precedence::Invalid);
 	EatToken(TokRightParen);
+
+	if (expr)
+	{
+		expr->Accept(&m_sema);
+	}
+
 	return expr;
 }
 
@@ -759,6 +789,7 @@ Expr *Parser::ParseExprArraySlice(Pos pos, Expr *left, Expr *first)
 	if (m_token.type == TokRightBracket)
 	{
 		expr->range.end = EatToken().range.end;
+		m_sema.Visit(expr);
 		return expr;
 	}
 
@@ -769,6 +800,7 @@ Expr *Parser::ParseExprArraySlice(Pos pos, Expr *left, Expr *first)
 		if (m_token.type == TokRightBracket)
 		{
 			expr->range.end = EatToken().range.end;
+			m_sema.Visit(expr);
 			return expr;
 		}
 	}
@@ -777,6 +809,7 @@ Expr *Parser::ParseExprArraySlice(Pos pos, Expr *left, Expr *first)
 
 	expr->step.reset(ParseExprCore(Precedence::Invalid));
 	expr->range.end = ParseTerminator(TokRightBracket, expr->pos, ParseUnterminatedArraySlice);
+	m_sema.Visit(expr);
 	return expr;
 }
 
@@ -785,10 +818,9 @@ Expr *Parser::ParseExprListComprehension(Pos pos, Expr *first)
 	auto expr = new ExprListComprehension;
 	expr->pos = pos;
 	expr->expr.reset(first);
-	expr->declType = Decl::Variable;
 	expr->range.beg = pos;
 
-	// Eat colon.
+	SemaScope scope(m_sema, Scope::Block, expr);
 	EatToken();
 
 	while (true)
@@ -796,8 +828,8 @@ Expr *Parser::ParseExprListComprehension(Pos pos, Expr *first)
 		if (m_token.type == TokIdentifier && Lookahead().type == KwIn)
 		{
 			auto id = EatToken();
-			expr->declNames.push_back(IdString(id.slice));
-			expr->declRanges.push_back(id.range);
+			m_sema.Declare(Decl::Variable, id.range, IdString(id.slice), expr);
+
 			EatToken(KwIn);
 			expr->generators.push_back(ParseExpr());
 		}
@@ -825,6 +857,7 @@ Expr *Parser::ParseExprListComprehension(Pos pos, Expr *first)
 	}
 
 	expr->range.end = ParseTerminator(TokRightBracket, expr->pos, ParseUnterminatedListComprehension);
+	m_sema.Visit(expr);
 	return expr;
 }
 
@@ -902,6 +935,7 @@ Stmt *Parser::ParseStmtBlock()
 	stmt->pos = m_token.range.beg;
 	stmt->range = m_token.range;
 
+	SemaScope scope(m_sema, Scope::Block, stmt);
 	EatToken(TokLeftBrace);
 
 	while (m_token.type != TokRightBrace && m_token.type != TokEndOfFile)
@@ -910,6 +944,7 @@ Stmt *Parser::ParseStmtBlock()
 	}
 
 	stmt->range.end = EatToken(TokRightBrace).range.end;
+	m_sema.Visit(stmt);
 	return stmt;
 }
 
@@ -923,6 +958,7 @@ Stmt *Parser::ParseStmtControl()
 	EatToken();
 
 	stmt->range.end = EatToken(TokSemicolon).range.end;
+	m_sema.Visit(stmt);
 	return stmt;
 }
 
@@ -932,13 +968,14 @@ Stmt *Parser::ParseStmtDoWhile()
 	stmt->pos = m_token.range.beg;
 	stmt->range = m_token.range;
 
+	SemaScope scope(m_sema, Scope::Loop, stmt);
 	EatToken();
 	stmt->body.reset(ParseStmtCore());
 	EatToken(KwWhile);
 	stmt->cond.reset(ParseExprCondition());
 
-	auto semi = EatToken(TokSemicolon);
-	stmt->range.end = semi.range.end;
+	stmt->range.end = EatToken(TokSemicolon).range.end;
+	m_sema.Visit(stmt);
 	return stmt;
 }
 
@@ -948,6 +985,7 @@ Stmt *Parser::ParseStmtFor()
 	stmt->pos = m_token.range.beg;
 	stmt->range = m_token.range;
 
+	SemaScope scope(m_sema, Scope::Loop, stmt);
 	EatToken();
 
 	EatToken(TokLeftParen);
@@ -1010,6 +1048,7 @@ Stmt *Parser::ParseStmtFor()
 		stmt->range.end = m_token.range.beg;
 	}
 
+	m_sema.Visit(stmt);
 	return stmt;
 }
 
@@ -1018,16 +1057,15 @@ Stmt *Parser::ParseStmtForeach()
 	auto stmt = new StmtForeach;
 	stmt->pos = m_token.range.beg;
 	stmt->range = m_token.range;
-	stmt->declType = Decl::Variable;
 
+	SemaScope scope(m_sema, Scope::Loop, stmt);
 	EatToken();
 
 	EatToken(TokLeftParen);
 	{
 		EatToken(KwVar);
 		auto id = EatToken(TokIdentifier);
-		stmt->declNames.push_back(IdString(id.slice));
-		stmt->declRanges.push_back(id.range);
+		m_sema.Declare(Decl::Variable, id.range, IdString(id.slice), stmt);
 		EatToken(KwIn);
 		stmt->from = ParseExpr();
 	}
@@ -1043,6 +1081,7 @@ Stmt *Parser::ParseStmtForeach()
 		stmt->range.end = m_token.range.beg;
 	}
 
+	m_sema.Visit(stmt);
 	return stmt;
 }
 
@@ -1052,6 +1091,7 @@ Stmt *Parser::ParseStmtIfElse()
 	stmt->pos = m_token.range.beg;
 	stmt->range = m_token.range;
 
+	SemaScope scope(m_sema, Scope::Block, stmt);
 	EatToken();
 
 	stmt->cond.reset(ParseExprCondition());
@@ -1076,6 +1116,7 @@ Stmt *Parser::ParseStmtIfElse()
 		stmt->range.end = m_token.range.beg;
 	}
 
+	m_sema.Visit(stmt);
 	return stmt;
 }
 
@@ -1092,31 +1133,30 @@ Stmt *Parser::ParseStmtReturn()
 		stmt->value = ParseExpr();
 	}
 
-	auto semi = EatToken(TokSemicolon);
-	stmt->range.end = semi.range.end;
+	stmt->range.end = EatToken(TokSemicolon).range.end;
+	m_sema.Visit(stmt);
 	return stmt;
 }
 
 Stmt *Parser::ParseStmtVarDecl()
 {
+	auto type = m_token.type == KwVar ? Decl::Variable : Decl::Constant;
 	auto stmt = new StmtVarDecl;
 	stmt->pos = m_token.range.beg;
 	stmt->range = m_token.range;
-	stmt->declType = m_token.type == KwVar ? Decl::Variable : Decl::Constant;
 
 	EatToken();
 
 	while (true)
 	{
 		auto id = EatToken(TokIdentifier);
-		stmt->declNames.push_back(IdString(id.slice));
-		stmt->declRanges.push_back(id.range);
+		m_sema.Declare(type, id.range, IdString(id.slice), stmt);
 
 		if (m_token.type == TokComma || m_token.type == TokSemicolon)
 		{
 			stmt->values.push_back(nullptr);
 
-			if (stmt->declType == Decl::Constant)
+			if (type == Decl::Constant)
 			{
 				m_diag
 					<< id.range
@@ -1146,8 +1186,8 @@ Stmt *Parser::ParseStmtVarDecl()
 		break;
 	}
 
-	auto semi = EatToken(TokSemicolon);
-	stmt->range.end = semi.range.end;
+	stmt->range.end = EatToken(TokSemicolon).range.end;
+	m_sema.Visit(stmt);
 	return stmt;
 }
 
@@ -1157,6 +1197,7 @@ Stmt *Parser::ParseStmtSwitch()
 	stmt->pos = m_token.range.beg;
 	stmt->range = m_token.range;
 
+	SemaScope scope(m_sema, Scope::Block, stmt);
 	EatToken();
 	stmt->value.reset(ParseExprCondition());
 	EatToken(TokLeftBrace);
@@ -1209,6 +1250,7 @@ Stmt *Parser::ParseStmtSwitch()
 	}
 
 	stmt->range.end = EatToken(TokRightBrace).range.end;
+	m_sema.Visit(stmt);
 	return stmt;
 }
 
@@ -1218,6 +1260,7 @@ Stmt *Parser::ParseStmtWhile()
 	stmt->pos = m_token.range.beg;
 	stmt->range = m_token.range;
 
+	SemaScope scope(m_sema, Scope::Loop, stmt);
 	EatToken();
 
 	stmt->cond.reset(ParseExprCondition());
@@ -1232,6 +1275,7 @@ Stmt *Parser::ParseStmtWhile()
 		stmt->range.end = m_token.range.beg;
 	}
 
+	m_sema.Visit(stmt);
 	return stmt;
 }
 
@@ -1251,6 +1295,7 @@ Stmt *Parser::ParseStmtNakedExpr()
 		stmt->range.end = EatToken(TokSemicolon).range.end;
 	}
 
+	m_sema.Visit(stmt);
 	return stmt;
 }
 
@@ -1275,6 +1320,7 @@ Stmt *Parser::ParseStmtLambdaBody()
 		stmt->range.end = m_token.range.beg;
 	}
 
+	m_sema.Visit(stmt);
 	return stmt;
 }
 
@@ -1303,11 +1349,8 @@ Pos Parser::ParseTerminator(TokenType type, Pos beg, DiagMessage msg)
 	return token.range.end;
 }
 
-Decl Parser::ParseArgumentList(bool &varargs)
+void Parser::ParseArgumentList(bool &varargs)
 {
-	Decl args;
-	args.declType = Decl::Variable;
-
 	varargs = false;
 
 	EatToken(TokLeftParen);
@@ -1322,9 +1365,9 @@ Decl Parser::ParseArgumentList(bool &varargs)
 					varargs = true;
 				}
 
+				// Fix
 				auto id = EatToken(TokIdentifier);
-				args.declNames.push_back(IdString(id.slice));
-				args.declRanges.push_back(id.range);
+				m_sema.Declare(Decl::Argument, id.range, IdString(id.slice), nullptr);
 
 				if (!varargs && m_token.type == TokComma)
 				{
@@ -1338,8 +1381,6 @@ Decl Parser::ParseArgumentList(bool &varargs)
 		}
 	}
 	EatToken(TokRightParen);
-
-	return args;
 }
 
 // ---------------------------------------------------------------------------

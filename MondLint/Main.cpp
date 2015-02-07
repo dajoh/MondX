@@ -53,9 +53,9 @@ int main(int argc, char *argv[])
 
 	DiagBuilder diag(obs);
 	Lexer lexer(diag, src);
-	Parser parser(diag, src, lexer);
 	Sema sema(diag);
+	Parser parser(diag, src, lexer, sema);
+	parser.ParseFile();
 
-	sema.Run(parser.ParseFile());
 	return 0;
 }

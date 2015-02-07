@@ -2,43 +2,101 @@
 
 using namespace Mond;
 
-Sema::Sema(DiagBuilder &diag) : m_diag(diag)
+Sema::Sema(DiagBuilder &diag) : m_scope(new Scope()), m_diag(diag)
+{
+	m_scope->type = Scope::Block;
+	m_scope->node = nullptr;
+}
+
+Sema::~Sema()
 {
 }
 
-void Sema::Run(const StmtPtrList &stmts)
+void Sema::PushScope(Scope::Type type, AstNode *node)
 {
-	PushScope(Scope::Block);
+	ScopePtr scope(new Scope());
+	scope->type = type;
+	scope->node = node;
+	scope->parent = m_scope;
+
+	m_scope->children.push_back(scope);
+	m_scope = scope;
+}
+
+void Sema::PopScope()
+{
+	m_scope = m_scope->parent;
+}
+
+void Sema::Declare(Decl::Type type, Range range, const string &name, AstNode *node)
+{
+	Scope *scope = m_scope.get();
+	while (scope != nullptr)
 	{
-		for (auto &stmt : stmts)
+		auto it = scope->decls.find(name);
+		if (it != scope->decls.end())
 		{
-			AcceptChild(this, stmt.get());
+			m_diag
+				<< range
+				<< Error
+				<< SemaAlreadyDeclared
+				<< name
+				<< it->second.range.beg.line
+				<< it->second.range.beg.column
+				<< DiagEnd;
+			break;
 		}
+
+		scope = scope->parent.get();
 	}
-	PopScope();
+
+	Decl decl;
+	decl.type = type;
+	decl.range = range;
+	decl.node = node;
+	m_scope->decls[name] = decl;
 }
 
-void Sema::Visit(ExprFunDecl *expr)
+void Sema::Visit(Expr *)
 {
-	Declare(*expr);
+	throw logic_error("unreachable in sema visit expr");
+}
 
-	PushScope(expr->declType == Decl::Function ? Scope::Function : Scope::Sequence);
-	{
-		Declare(expr->args);
-		Visitor::Visit(expr);
-	}
-	PopScope();
+void Sema::Visit(ExprArrayLiteral *)
+{
+}
+
+void Sema::Visit(ExprArraySlice *)
+{
+}
+
+void Sema::Visit(ExprBinaryOp *)
+{
+}
+
+void Sema::Visit(ExprCall *)
+{
+}
+
+void Sema::Visit(ExprFieldAccess *)
+{
+}
+
+void Sema::Visit(ExprFunDecl *)
+{
 }
 
 void Sema::Visit(ExprId *expr)
 {
-	for (int i = m_scopes.size() - 1; i >= 0; i--)
+	Scope *scope = m_scope.get();
+	while (scope != nullptr)
 	{
-		auto it = m_scopes[i].decls.find(expr->name);
-		if (it != m_scopes[i].decls.end())
+		if (scope->decls.count(expr->name) != 0)
 		{
 			return;
 		}
+
+		scope = scope->parent.get();
 	}
 
 	m_diag
@@ -49,14 +107,40 @@ void Sema::Visit(ExprId *expr)
 		<< DiagEnd;
 }
 
-void Sema::Visit(ExprLambda *expr)
+void Sema::Visit(ExprIndexAccess *)
 {
-	PushScope(Scope::Function);
-	{
-		Declare(expr->args);
-		Visitor::Visit(expr);
-	}
-	PopScope();
+}
+
+void Sema::Visit(ExprLambda *)
+{
+}
+
+void Sema::Visit(ExprListComprehension *)
+{
+}
+
+void Sema::Visit(ExprNumberLiteral *)
+{
+}
+
+void Sema::Visit(ExprObjectLiteral *)
+{
+}
+
+void Sema::Visit(ExprSimpleLiteral *)
+{
+}
+
+void Sema::Visit(ExprStringLiteral *)
+{
+}
+
+void Sema::Visit(ExprTernaryOp *)
+{
+}
+
+void Sema::Visit(ExprUnaryOp *)
+{
 }
 
 void Sema::Visit(ExprYield *expr)
@@ -71,33 +155,13 @@ void Sema::Visit(ExprYield *expr)
 	}
 }
 
-void Sema::Visit(ExprListComprehension *expr)
+void Sema::Visit(Stmt *)
 {
-	PushScope(Scope::Block);
-	{
-		for (unsigned int i = 0; i < expr->declNames.size(); i++)
-		{
-			auto name = expr->declNames[i];
-			auto from = expr->generators[i].get();
-
-			AcceptChild(this, from);
-
-			DeclareSubDecl(name, SubDecl(i, *expr));
-		}
-
-		for (auto &filter : expr->filters)
-		{
-			AcceptChild(this, filter.get());
-		}
-
-		AcceptChild(this, expr->expr.get());
-	}
-	PopScope();
+	throw logic_error("unreachable in sema visit stmt");
 }
 
-void Sema::Visit(StmtBlock *stmt)
+void Sema::Visit(StmtBlock *)
 {
-	Run(stmt->statements);
 }
 
 void Sema::Visit(StmtControl *stmt)
@@ -113,124 +177,89 @@ void Sema::Visit(StmtControl *stmt)
 	}
 }
 
-void Sema::Visit(StmtDoWhile *stmt)
+void Sema::Visit(StmtDoWhile *)
 {
-	PushScope(Scope::Loop);
-	Visitor::Visit(stmt);
-	PopScope();
 }
 
-void Sema::Visit(StmtFor *stmt)
+void Sema::Visit(StmtFor *)
 {
-	PushScope(Scope::Loop);
-	Visitor::Visit(stmt);
-	PopScope();
 }
 
-void Sema::Visit(StmtForeach *stmt)
+void Sema::Visit(StmtForeach *)
 {
-	PushScope(Scope::Loop);
-	{
-		AcceptChild(this, stmt->from.get());
-		Declare(*stmt);
-		AcceptChild(this, stmt->body.get());
-	}
-	PopScope();
 }
 
-void Sema::Visit(StmtIfElse *stmt)
+void Sema::Visit(StmtIfElse *)
 {
-	PushScope(Scope::Block);
-	Visitor::Visit(stmt);
-	PopScope();
 }
 
-void Sema::Visit(StmtVarDecl *stmt)
+void Sema::Visit(StmtNakedExpr *)
 {
-	Declare(*stmt);
-	Visitor::Visit(stmt);
+}
+
+void Sema::Visit(StmtReturn *)
+{
 }
 
 void Sema::Visit(StmtSwitch *stmt)
 {
-	PushScope(Scope::Block);
+	Pos defaultPos;
+
+	for (auto &switchCase : stmt->cases)
 	{
-		AcceptChild(this, stmt->value.get());
+		// TODO: Check case uniqueness.
+		// TODO: Fold values before checking that they're constant.
 
-		Pos defaultPos;
-
-		for (auto &switchCase : stmt->cases)
+		if (switchCase.def && defaultPos.IsValid())
 		{
-			// TODO: Check case uniqueness.
-			// TODO: Fold values before checking that they're constant.
+			m_diag
+				<< switchCase.headRange
+				<< Error
+				<< SemaDuplicateDefaultCase
+				<< defaultPos.line
+				<< defaultPos.column
+				<< DiagEnd;
+		}
+		else if (switchCase.value && !switchCase.value->IsConstant())
+		{
+			m_diag
+				<< switchCase.value->range
+				<< Error
+				<< SemaCaseValueNotConstant
+				<< DiagEnd;
+		}
 
-			if (switchCase.def && defaultPos.IsValid())
-			{
-				m_diag
-					<< switchCase.headRange
-					<< Error
-					<< SemaDuplicateDefaultCase
-					<< defaultPos.line
-					<< defaultPos.column
-					<< DiagEnd;
-			}
-			else if (switchCase.value && !switchCase.value->IsConstant())
-			{
-				m_diag
-					<< switchCase.value->range
-					<< Error
-					<< SemaCaseValueNotConstant
-					<< DiagEnd;
-			}
-
-			if (!defaultPos.IsValid() && switchCase.def)
-			{
-				defaultPos = switchCase.headRange.beg;
-			}
-
-			PushScope(Scope::Block);
-			{
-				AcceptChild(this, switchCase.value.get());
-				Run(switchCase.body);
-			}
-			PopScope();
+		if (!defaultPos.IsValid() && switchCase.def)
+		{
+			defaultPos = switchCase.headRange.beg;
 		}
 	}
-	PopScope();
 }
 
-void Sema::Visit(StmtWhile *stmt)
+void Sema::Visit(StmtVarDecl *)
 {
-	PushScope(Scope::Loop);
-	Visitor::Visit(stmt);
-	PopScope();
 }
 
-void Sema::PushScope(Scope::Type type)
+void Sema::Visit(StmtWhile *)
 {
-	auto scope = Scope();
-	scope.type = type;
-	m_scopes.push_back(scope);
-}
-
-void Sema::PopScope()
-{
-	m_scopes.pop_back();
 }
 
 bool Sema::IsInSeq() const
 {
-	for (int i = m_scopes.size() - 1; i >= 0; i--)
+	Scope *scope = m_scope.get();
+	while (scope != nullptr)
 	{
-		switch (m_scopes[i].type)
+		switch (scope->type)
 		{
 		case Scope::Function:
 			return false;
 		case Scope::Sequence:
 			return true;
 		default:
-			continue;
+			break;
 		}
+
+		scope = scope->parent.get();
 	}
 
 	return false;
@@ -238,9 +267,10 @@ bool Sema::IsInSeq() const
 
 bool Sema::IsInLoop() const
 {
-	for (int i = m_scopes.size() - 1; i >= 0; i--)
+	Scope *scope = m_scope.get();
+	while (scope != nullptr)
 	{
-		switch (m_scopes[i].type)
+		switch (scope->type)
 		{
 		case Scope::Loop:
 			return true;
@@ -248,44 +278,11 @@ bool Sema::IsInLoop() const
 		case Scope::Sequence:
 			return false;
 		default:
-			continue;
+			break;
 		}
+
+		scope = scope->parent.get();
 	}
 
 	return false;
-}
-
-void Sema::Declare(Decl decl)
-{
-	for (unsigned int i = 0; i < decl.declNames.size(); i++)
-	{
-		DeclareSubDecl(decl.declNames[i], SubDecl(i, decl));
-	}
-}
-
-void Sema::DeclareSubDecl(const string &name, SubDecl subDecl)
-{
-	for (int i = m_scopes.size() - 1; i >= 0; i--)
-	{
-		auto it = m_scopes[i].decls.find(name);
-		if (it != m_scopes[i].decls.end())
-		{
-			m_diag
-				<< GetSubDeclRange(subDecl)
-				<< Error
-				<< SemaAlreadyDeclared
-				<< name
-				<< GetSubDeclRange(it->second).beg.line
-				<< GetSubDeclRange(it->second).beg.column
-				<< DiagEnd;
-			return;
-		}
-	}
-
-	m_scopes.back().decls[name] = subDecl;
-}
-
-Range Sema::GetSubDeclRange(SubDecl decl) const
-{
-	return decl.second.declRanges[decl.first];
 }
