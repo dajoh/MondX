@@ -40,7 +40,7 @@ void Visitor::Visit(ExprArrayLiteral *expr)
 {
 	VisitSelf(this, expr);
 
-	for (auto elem : expr->elems)
+	for (auto &elem : expr->elems)
 	{
 		AcceptChild(this, elem.get());
 	}
@@ -67,7 +67,7 @@ void Visitor::Visit(ExprCall *expr)
 	VisitSelf(this, expr);
 	AcceptChild(this, expr->left.get());
 
-	for (auto arg : expr->args)
+	for (auto &arg : expr->args)
 	{
 		AcceptChild(this, arg.get());
 	}
@@ -108,12 +108,12 @@ void Visitor::Visit(ExprListComprehension *expr)
 	VisitSelf(this, expr);
 	AcceptChild(this, expr->expr.get());
 
-	for (auto filter : expr->filters)
+	for (auto &filter : expr->filters)
 	{
 		AcceptChild(this, filter.get());
 	}
 
-	for (auto generator : expr->generators)
+	for (auto &generator : expr->generators)
 	{
 		AcceptChild(this, generator.get());
 	}
@@ -128,12 +128,12 @@ void Visitor::Visit(ExprObjectLiteral *expr)
 {
 	VisitSelf(this, expr);
 
-	for (auto fn : expr->fnEntries)
+	for (auto &fn : expr->fnEntries)
 	{
 		AcceptChild(this, fn.get());
 	}
 
-	for (auto kv : expr->kvEntries)
+	for (auto &kv : expr->kvEntries)
 	{
 		AcceptChild(this, kv.value.get());
 	}
@@ -181,7 +181,7 @@ void Visitor::Visit(StmtBlock *stmt)
 {
 	VisitSelf(this, stmt);
 
-	for (auto sub : stmt->statements)
+	for (auto &sub : stmt->statements)
 	{
 		AcceptChild(this, sub.get());
 	}
@@ -205,7 +205,7 @@ void Visitor::Visit(StmtFor *stmt)
 	AcceptChild(this, stmt->init.get());
 	AcceptChild(this, stmt->cond.get());
 
-	for (auto step : stmt->steps)
+	for (auto &step : stmt->steps)
 	{
 		AcceptChild(this, step.get());
 	}
@@ -244,11 +244,11 @@ void Visitor::Visit(StmtSwitch *stmt)
 {
 	VisitSelf(this, stmt);
 
-	for (auto subCase : stmt->cases)
+	for (auto &subCase : stmt->cases)
 	{
 		AcceptChild(this, subCase.value.get());
 
-		for (auto subStmt : subCase.body)
+		for (auto &subStmt : subCase.body)
 		{
 			AcceptChild(this, subStmt.get());
 		}
@@ -259,7 +259,7 @@ void Visitor::Visit(StmtVarDecl *stmt)
 {
 	VisitSelf(this, stmt);
 
-	for (auto value : stmt->values)
+	for (auto &value : stmt->values)
 	{
 		AcceptChild(this, value.get());
 	}

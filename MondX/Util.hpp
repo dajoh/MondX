@@ -20,7 +20,7 @@ namespace Mond
 	using std::string;
 	using std::vector;
 	using std::function;
-	using std::shared_ptr;
+	using std::unique_ptr;
 	using std::logic_error;
 	using std::stringstream;
 	using std::unordered_map;
@@ -36,6 +36,9 @@ namespace Mond
 		Pos(int line, int column);
 
 		bool IsValid() const;
+
+		bool operator==(const Pos &other) const;
+		bool operator!=(const Pos &other) const;
 
 		int line;
 		int column;
@@ -80,6 +83,16 @@ namespace Mond
 	inline bool Pos::IsValid() const
 	{
 		return line != -1 && column != -1;
+	}
+
+	inline bool Pos::operator==(const Pos &other) const
+	{
+		return line == other.line && column == other.column;
+	}
+
+	inline bool Pos::operator!=(const Pos &other) const
+	{
+		return line != other.line || column != other.column;
 	}
 
 	// -----------------------------------------------------------------------

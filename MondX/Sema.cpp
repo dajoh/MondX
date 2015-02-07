@@ -6,11 +6,11 @@ Sema::Sema(DiagBuilder &diag) : m_diag(diag)
 {
 }
 
-void Sema::Run(StmtPtrList stmts)
+void Sema::Run(const StmtPtrList &stmts)
 {
 	PushScope(Scope::Block);
 	{
-		for (auto stmt : stmts)
+		for (auto &stmt : stmts)
 		{
 			AcceptChild(this, stmt.get());
 		}
@@ -78,14 +78,14 @@ void Sema::Visit(ExprListComprehension *expr)
 		for (unsigned int i = 0; i < expr->declNames.size(); i++)
 		{
 			auto name = expr->declNames[i];
-			auto from = expr->generators[i];
+			auto from = expr->generators[i].get();
 
-			AcceptChild(this, from.get());
+			AcceptChild(this, from);
 
 			DeclareSubDecl(name, SubDecl(i, *expr));
 		}
 
-		for (auto filter : expr->filters)
+		for (auto &filter : expr->filters)
 		{
 			AcceptChild(this, filter.get());
 		}
@@ -159,7 +159,7 @@ void Sema::Visit(StmtSwitch *stmt)
 
 		Pos defaultPos;
 
-		for (auto switchCase : stmt->cases)
+		for (auto &switchCase : stmt->cases)
 		{
 			// TODO: Check case uniqueness.
 			// TODO: Fold values before checking that they're constant.

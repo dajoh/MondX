@@ -11,7 +11,7 @@ namespace Mond
 	public:
 		Sema(DiagBuilder &diag);
 
-		void Run(StmtPtrList stmts);
+		void Run(const StmtPtrList &stmts);
 
 		virtual void Visit(ExprFunDecl *);
 		virtual void Visit(ExprId *);
