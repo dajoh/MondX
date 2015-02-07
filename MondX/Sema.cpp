@@ -32,10 +32,10 @@ void Sema::Visit(ExprFunDecl *expr)
 
 void Sema::Visit(ExprId *expr)
 {
-	for (auto scope : m_scopes)
+	for (int i = m_scopes.size() - 1; i >= 0; i--)
 	{
-		auto it = scope.decls.find(expr->name);
-		if (it != scope.decls.end())
+		auto it = m_scopes[i].decls.find(expr->name);
+		if (it != m_scopes[i].decls.end())
 		{
 			return;
 		}
@@ -265,10 +265,10 @@ void Sema::Declare(Decl decl)
 
 void Sema::DeclareSubDecl(const string &name, SubDecl subDecl)
 {
-	for (auto scope : m_scopes)
+	for (int i = m_scopes.size() - 1; i >= 0; i--)
 	{
-		auto it = scope.decls.find(name);
-		if (it != scope.decls.end())
+		auto it = m_scopes[i].decls.find(name);
+		if (it != m_scopes[i].decls.end())
 		{
 			m_diag
 				<< GetSubDeclRange(subDecl)
