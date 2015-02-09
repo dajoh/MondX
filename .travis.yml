@@ -1,5 +1,7 @@
 language: cpp
-script: cmake
 compiler:
   - gcc
   - clang
+script: cmake
+  - 'cmake -G "Unix Makefiles" $TRAVIS_BUILD_DIR'
+  - 'make'
