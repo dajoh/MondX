@@ -1,3 +1,4 @@
+#include <cstring>
 #include <fstream>
 #include "../MondX/Sema.hpp"
 #include "../MondX/Parser.hpp"
