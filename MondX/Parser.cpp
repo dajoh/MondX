@@ -135,7 +135,7 @@ string Parser::LiteralString(Slice s)
 double Parser::LiteralNumber(Slice s)
 {
 	// TODO: Yeah uh, this ain't gonna work. Handle 0x 0b and underscores.
-	return strtod(m_source.GetSlice(s).c_str(), nullptr);
+	return strtod(m_source.GetSlice(s).c_str(), NULL);
 }
 
 // ---------------------------------------------------------------------------
@@ -217,7 +217,7 @@ Expr *Parser::ParseExprCore(Precedence p)
 				<< Error
 				<< ParseExpectedExpr
 				<< DiagEnd;
-			return nullptr;
+			return NULL;
 		}
 		left = ParseExprPrefixOp();
 		break;
@@ -355,7 +355,7 @@ Expr *Parser::ParseExprObjectLiteral()
 
 	while (m_token.type != TokRightBrace)
 	{
-		expr->entries.push_back(ExprObjectLiteral::KeyValue());
+		expr->entries.resize(expr->entries.size() + 1);
 
 		auto &entry = expr->entries.back();
 		bool wantsExpr = false;
@@ -517,7 +517,7 @@ Expr *Parser::ParseExprIndexAccess(Expr *left)
 		auto pos = expr->pos;
 		auto left = expr->left.release();
 		delete expr;
-		return ParseExprArraySlice(pos, left, nullptr);
+		return ParseExprArraySlice(pos, left, NULL);
 	}
 
 	expr->index = ParseExpr();
@@ -787,7 +787,7 @@ Stmt *Parser::ParseStmtCore()
 			<< m_token.type
 			<< DiagEnd;
 		EatToken();
-		return nullptr;
+		return NULL;
 	default:
 		break;
 	}
@@ -796,7 +796,7 @@ Stmt *Parser::ParseStmtCore()
 	{
 	case TokSemicolon:
 		EatToken();
-		return nullptr;
+		return NULL;
 	case TokLeftBrace:
 		return ParseStmtBlock();
 	case KwBreak:
@@ -837,7 +837,7 @@ Stmt *Parser::ParseStmtCore()
 		<< ParseExpectedStmt
 		<< DiagEnd;
 	EatToken();
-	return nullptr;
+	return NULL;
 }
 
 Stmt *Parser::ParseStmtBlock()
@@ -1104,7 +1104,7 @@ Stmt *Parser::ParseStmtVarDecl()
 
 		if (m_token.type == TokComma || m_token.type == TokSemicolon)
 		{
-			stmt->values.push_back(nullptr);
+			stmt->values.push_back(NULL);
 
 			if (type == Decl::Constant)
 			{
@@ -1154,7 +1154,7 @@ Stmt *Parser::ParseStmtSwitch()
 
 	while (m_token.type != TokRightBrace && m_token.type != TokEndOfFile)
 	{
-		stmt->cases.push_back(StmtSwitch::Case());
+		stmt->cases.resize(stmt->cases.size() + 1);
 
 		auto &current = stmt->cases.back();
 		current.headRange.beg = m_token.range.beg;
@@ -1317,9 +1317,9 @@ void Parser::ParseArgumentList(bool &varargs)
 					varargs = true;
 				}
 
-				// Fix
+				// TODO: AstNode
 				auto id = EatToken(TokIdentifier);
-				m_sema.Declare(Decl::Argument, id.range, IdString(id.slice), nullptr);
+				m_sema.Declare(Decl::Argument, id.range, IdString(id.slice), NULL);
 
 				if (!varargs && m_token.type == TokComma)
 				{

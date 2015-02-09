@@ -4,7 +4,7 @@ using namespace Mond;
 
 DiagBuilder::DiagBuilder(DiagObserver fn) :
 	m_pos(0),
-	m_fmt(nullptr),
+	m_fmt(NULL),
 	m_func(fn)
 {
 }
@@ -80,7 +80,7 @@ DiagBuilder &DiagBuilder::operator<<(DiagSentinel b)
 	m_func(m_diag);
 
 	m_pos = 0;
-	m_fmt = nullptr;
+	m_fmt = NULL;
 	m_msg.str("");
 	m_diag = Diag();
 

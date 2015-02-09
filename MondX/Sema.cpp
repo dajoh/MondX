@@ -6,8 +6,8 @@ using namespace Mond;
 Sema::Sema(DiagBuilder &diag) : m_root(new Scope()), m_diag(diag)
 {
 	m_root->type = Scope::Block;
-	m_root->node = nullptr;
-	m_root->parent = nullptr;
+	m_root->node = NULL;
+	m_root->parent = NULL;
 
 	m_scope = m_root.get();
 }
@@ -36,7 +36,7 @@ void Sema::PopScope()
 void Sema::Declare(Decl::Type type, Range range, const string &name, AstNode *node)
 {
 	Scope *scope = m_scope;
-	while (scope != nullptr)
+	do
 	{
 		auto it = scope->decls.find(name);
 		if (it != scope->decls.end())
@@ -53,7 +53,7 @@ void Sema::Declare(Decl::Type type, Range range, const string &name, AstNode *no
 		}
 
 		scope = scope->parent;
-	}
+	} while (scope != NULL);
 
 	Decl decl;
 	decl.type = type;
@@ -249,7 +249,7 @@ void Sema::Visit(StmtWhile *)
 bool Sema::IsInSeq() const
 {
 	Scope *scope = m_scope;
-	while (scope != nullptr)
+	do
 	{
 		switch (scope->type)
 		{
@@ -262,7 +262,7 @@ bool Sema::IsInSeq() const
 		}
 
 		scope = scope->parent;
-	}
+	} while (scope != NULL);
 
 	return false;
 }
@@ -270,7 +270,7 @@ bool Sema::IsInSeq() const
 bool Sema::IsInLoop() const
 {
 	Scope *scope = m_scope;
-	while (scope != nullptr)
+	do
 	{
 		switch (scope->type)
 		{
@@ -284,7 +284,7 @@ bool Sema::IsInLoop() const
 		}
 
 		scope = scope->parent;
-	}
+	} while (scope != NULL);
 
 	return false;
 }
@@ -324,7 +324,7 @@ void Sema::CheckMutable(Expr *expr) const
 Decl *Sema::FindDecl(const string &name) const
 {
 	Scope *scope = m_scope;
-	while (scope != nullptr)
+	do
 	{
 		auto it = scope->decls.find(name);
 		if (it != scope->decls.end())
@@ -333,7 +333,7 @@ Decl *Sema::FindDecl(const string &name) const
 		}
 
 		scope = scope->parent;
-	}
+	} while (scope != NULL);
 
-	return nullptr;
+	return NULL;
 }
