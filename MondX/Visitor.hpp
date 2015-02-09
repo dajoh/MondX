@@ -16,11 +16,9 @@ namespace Mond
 		virtual void Visit(struct ExprBinaryOp *);
 		virtual void Visit(struct ExprCall *);
 		virtual void Visit(struct ExprFieldAccess *);
-		virtual void Visit(struct ExprFunDecl *);
 		virtual void Visit(struct ExprId *);
 		virtual void Visit(struct ExprIndexAccess *);
 		virtual void Visit(struct ExprLambda *);
-		virtual void Visit(struct ExprListComprehension *);
 		virtual void Visit(struct ExprNumberLiteral *);
 		virtual void Visit(struct ExprObjectLiteral *);
 		virtual void Visit(struct ExprSimpleLiteral *);
@@ -35,6 +33,7 @@ namespace Mond
 		virtual void Visit(struct StmtDoWhile *);
 		virtual void Visit(struct StmtFor *);
 		virtual void Visit(struct StmtForeach *);
+		virtual void Visit(struct StmtFunDecl *);
 		virtual void Visit(struct StmtIfElse *);
 		virtual void Visit(struct StmtNakedExpr *);
 		virtual void Visit(struct StmtReturn *);

@@ -59,11 +59,9 @@ namespace Mond
 		virtual void Visit(ExprBinaryOp *);
 		virtual void Visit(ExprCall *);
 		virtual void Visit(ExprFieldAccess *);
-		virtual void Visit(ExprFunDecl *);
 		virtual void Visit(ExprId *);
 		virtual void Visit(ExprIndexAccess *);
 		virtual void Visit(ExprLambda *);
-		virtual void Visit(ExprListComprehension *);
 		virtual void Visit(ExprNumberLiteral *);
 		virtual void Visit(ExprObjectLiteral *);
 		virtual void Visit(ExprSimpleLiteral *);
@@ -78,6 +76,7 @@ namespace Mond
 		virtual void Visit(StmtDoWhile *);
 		virtual void Visit(StmtFor *);
 		virtual void Visit(StmtForeach *);
+		virtual void Visit(StmtFunDecl *);
 		virtual void Visit(StmtIfElse *);
 		virtual void Visit(StmtNakedExpr *);
 		virtual void Visit(StmtReturn *);
@@ -87,6 +86,9 @@ namespace Mond
 	private:
 		bool IsInSeq() const;
 		bool IsInLoop() const;
+		void CheckMutable(Expr *expr) const;
+
+		Decl *FindDecl(const string &name) const;
 
 		Scope *m_scope;
 		ScopePtr m_root;

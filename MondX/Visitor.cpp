@@ -79,12 +79,6 @@ void Visitor::Visit(ExprFieldAccess *expr)
 	AcceptChild(this, expr->left.get());
 }
 
-void Visitor::Visit(ExprFunDecl *expr)
-{
-	VisitSelf(this, expr);
-	AcceptChild(this, expr->body.get());
-}
-
 void Visitor::Visit(ExprId *expr)
 {
 	VisitSelf(this, expr);
@@ -103,22 +97,6 @@ void Visitor::Visit(ExprLambda *expr)
 	AcceptChild(this, expr->body.get());
 }
 
-void Visitor::Visit(ExprListComprehension *expr)
-{
-	VisitSelf(this, expr);
-	AcceptChild(this, expr->expr.get());
-
-	for (auto &filter : expr->filters)
-	{
-		AcceptChild(this, filter.get());
-	}
-
-	for (auto &generator : expr->generators)
-	{
-		AcceptChild(this, generator.get());
-	}
-}
-
 void Visitor::Visit(ExprNumberLiteral *expr)
 {
 	VisitSelf(this, expr);
@@ -128,14 +106,9 @@ void Visitor::Visit(ExprObjectLiteral *expr)
 {
 	VisitSelf(this, expr);
 
-	for (auto &fn : expr->fnEntries)
+	for (auto &entry : expr->entries)
 	{
-		AcceptChild(this, fn.get());
-	}
-
-	for (auto &kv : expr->kvEntries)
-	{
-		AcceptChild(this, kv.value.get());
+		AcceptChild(this, entry.value.get());
 	}
 }
 
@@ -218,6 +191,12 @@ void Visitor::Visit(StmtForeach *stmt)
 	VisitSelf(this, stmt);
 	AcceptChild(this, stmt->from.get());
 	AcceptChild(this, stmt->body.get());
+}
+
+void Visitor::Visit(StmtFunDecl *expr)
+{
+	VisitSelf(this, expr);
+	AcceptChild(this, expr->body.get());
 }
 
 void Visitor::Visit(StmtIfElse *stmt)

@@ -3,27 +3,10 @@
 
 #include "Sema.hpp"
 #include "Lexer.hpp"
+#include "OperatorUtil.hpp"
 
 namespace Mond
 {
-	enum class Precedence
-	{
-		Invalid,
-		Assign,
-		Ternary,
-		ConditionalOr,
-		ConditionalAnd,
-		Equality,
-		Relational,
-		BitOr,
-		BitXor,
-		BitAnd,
-		BitShift,
-		Addition,
-		Multiplication,
-		Misc
-	};
-
 	class Parser
 	{
 	public:
@@ -63,7 +46,6 @@ namespace Mond
 		Expr *ParseExprObjectLiteral();
 		Expr *ParseExprArrayLiteral();
 
-		Expr *ParseExprFunDecl();
 		Expr *ParseExprYield();
 
 		Expr *ParseExprCall(Expr *left);
@@ -78,7 +60,6 @@ namespace Mond
 		Expr *ParseExprLambda();
 		Expr *ParseExprCondition();
 		Expr *ParseExprArraySlice(Pos pos, Expr *left, Expr *first);
-		Expr *ParseExprListComprehension(Pos pos, Expr *first);
 
 		// -------------------------------------------------------------------
 		// Statements
@@ -91,6 +72,7 @@ namespace Mond
 		Stmt *ParseStmtDoWhile();
 		Stmt *ParseStmtFor();
 		Stmt *ParseStmtForeach();
+		Stmt *ParseStmtFunDecl();
 		Stmt *ParseStmtIfElse();
 		Stmt *ParseStmtReturn();
 		Stmt *ParseStmtVarDecl();
@@ -98,7 +80,7 @@ namespace Mond
 		Stmt *ParseStmtWhile();
 
 		Stmt *ParseStmtNakedExpr();
-		Stmt *ParseStmtLambdaBody();
+		Stmt *ParseStmtLambdaBody(bool isShorthand);
 
 		// -------------------------------------------------------------------
 		// Reused parsers
@@ -106,16 +88,6 @@ namespace Mond
 
 		Pos ParseTerminator(TokenType type, Pos beg, DiagMessage msg);
 		void ParseArgumentList(bool &varargs);
-
-		// -------------------------------------------------------------------
-		// Operators
-		// -------------------------------------------------------------------
-
-		bool IsPrefixOperator() const;
-		bool IsBinaryOperator() const;
-		bool IsPostfixOperator() const;
-
-		Precedence GetOperatorPrecedence();
 	private:
 		Sema &m_sema;
 		Lexer &m_lexer;

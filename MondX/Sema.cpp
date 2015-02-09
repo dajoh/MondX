@@ -1,4 +1,5 @@
 #include "Sema.hpp"
+#include "OperatorUtil.hpp"
 
 using namespace Mond;
 
@@ -74,8 +75,12 @@ void Sema::Visit(ExprArraySlice *)
 {
 }
 
-void Sema::Visit(ExprBinaryOp *)
+void Sema::Visit(ExprBinaryOp *expr)
 {
+	if (IsMutatingOperator(expr->type) && expr->left)
+	{
+		CheckMutable(expr->left.get());
+	}
 }
 
 void Sema::Visit(ExprCall *)
@@ -86,29 +91,18 @@ void Sema::Visit(ExprFieldAccess *)
 {
 }
 
-void Sema::Visit(ExprFunDecl *)
-{
-}
-
 void Sema::Visit(ExprId *expr)
 {
-	Scope *scope = m_scope;
-	while (scope != nullptr)
+	Decl *decl = FindDecl(expr->name);
+	if (!decl)
 	{
-		if (scope->decls.count(expr->name) != 0)
-		{
-			return;
-		}
-
-		scope = scope->parent;
+		m_diag
+			<< expr->range
+			<< Error
+			<< SemaUndeclaredId
+			<< expr->name
+			<< DiagEnd;
 	}
-
-	m_diag
-		<< expr->range
-		<< Error
-		<< SemaUndeclaredId
-		<< expr->name
-		<< DiagEnd;
 }
 
 void Sema::Visit(ExprIndexAccess *)
@@ -116,10 +110,6 @@ void Sema::Visit(ExprIndexAccess *)
 }
 
 void Sema::Visit(ExprLambda *)
-{
-}
-
-void Sema::Visit(ExprListComprehension *)
 {
 }
 
@@ -143,8 +133,12 @@ void Sema::Visit(ExprTernaryOp *)
 {
 }
 
-void Sema::Visit(ExprUnaryOp *)
+void Sema::Visit(ExprUnaryOp *expr)
 {
+	if (IsMutatingOperator(expr->type) && expr->value)
+	{
+		CheckMutable(expr->value.get());
+	}
 }
 
 void Sema::Visit(ExprYield *expr)
@@ -190,6 +184,10 @@ void Sema::Visit(StmtFor *)
 }
 
 void Sema::Visit(StmtForeach *)
+{
+}
+
+void Sema::Visit(StmtFunDecl *)
 {
 }
 
@@ -289,4 +287,53 @@ bool Sema::IsInLoop() const
 	}
 
 	return false;
+}
+
+void Sema::CheckMutable(Expr *expr) const
+{
+	if (!expr->IsStorable())
+	{
+		m_diag
+			<< expr->range
+			<< Error
+			<< SemaExprNotStorable
+			<< DiagEnd;
+		return;
+	}
+
+	auto id = dynamic_cast<ExprId *>(expr);
+	if (!id)
+	{
+		return;
+	}
+
+	auto decl = FindDecl(id->name);
+	if (decl && decl->type == Decl::Constant)
+	{
+		m_diag
+			<< id->range
+			<< Error
+			<< SemaMutatingConstant
+			<< id->name
+			<< decl->range.beg.line
+			<< decl->range.beg.column
+			<< DiagEnd;
+	}
+}
+
+Decl *Sema::FindDecl(const string &name) const
+{
+	Scope *scope = m_scope;
+	while (scope != nullptr)
+	{
+		auto it = scope->decls.find(name);
+		if (it != scope->decls.end())
+		{
+			return &it->second;
+		}
+
+		scope = scope->parent;
+	}
+
+	return nullptr;
 }

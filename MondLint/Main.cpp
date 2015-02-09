@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
 {
 	if (argc < 2)
 	{
-		printf("usage: mond-lint [-ftool] <filename>\n");
+		printf("usage: mondx-lint [-ftool] <filename>\n");
 		return 1;
 	}
 

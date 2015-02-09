@@ -44,8 +44,6 @@ const char *Mond::GetDiagMessageFormat(DiagMessage msg)
 		return "unterminated object literal";
 	case ParseUnterminatedFunctionCall:
 		return "unterminated function call";
-	case ParseUnterminatedListComprehension:
-		return "unterminated list comprehension";
 	case ParseUnterminatedArraySlice:
 		return "unterminated array slice";
 
@@ -63,6 +61,10 @@ const char *Mond::GetDiagMessageFormat(DiagMessage msg)
 		return "duplicate case, already defined at %d:%d";
 	case SemaDuplicateDefaultCase:
 		return "duplicate default case, already defined at %d:%d";
+	case SemaExprNotStorable:
+		return "expression not storable";
+	case SemaMutatingConstant:
+		return "can't change constant '%s' declared at %d:%d";
 	}
 
 	throw invalid_argument("unknown diagnostic message");

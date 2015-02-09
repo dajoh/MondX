@@ -25,7 +25,6 @@ namespace Mond
 		ParseUnterminatedArrayLiteral,
 		ParseUnterminatedObjectLiteral,
 		ParseUnterminatedFunctionCall,
-		ParseUnterminatedListComprehension,
 		ParseUnterminatedArraySlice,
 
 		SemaUndeclaredId,
@@ -35,6 +34,8 @@ namespace Mond
 		SemaCaseValueNotConstant,
 		SemaDuplicateCaseValue,
 		SemaDuplicateDefaultCase,
+		SemaExprNotStorable,
+		SemaMutatingConstant,
 	};
 
 	const char *GetDiagMessageFormat(DiagMessage msg);

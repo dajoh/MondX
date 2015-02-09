@@ -18,8 +18,8 @@ namespace Mond
 
 	struct Expr : public AstNode
 	{
-		virtual bool WantsSemi() { return true; }
 		virtual bool IsConstant() { return false; }
+		virtual bool IsStorable() { return false; }
 	};
 
 	struct Stmt : public AstNode
@@ -73,6 +73,7 @@ namespace Mond
 	struct ExprFieldAccess : public Expr
 	{
 		void Accept(Visitor *v) { v->Visit(this); }
+		bool IsStorable() { return true; }
 
 		string name;
 		ExprPtr left;
@@ -81,6 +82,7 @@ namespace Mond
 	struct ExprId : public Expr
 	{
 		void Accept(Visitor *v) { v->Visit(this); }
+		bool IsStorable() { return true; }
 
 		string name;
 	};
@@ -88,6 +90,7 @@ namespace Mond
 	struct ExprIndexAccess : public Expr
 	{
 		void Accept(Visitor *v) { v->Visit(this); }
+		bool IsStorable() { return true; }
 
 		ExprPtr left;
 		ExprPtr index;
@@ -98,24 +101,8 @@ namespace Mond
 		void Accept(Visitor *v) { v->Visit(this); }
 
 		bool varargs;
+		bool sequence;
 		StmtPtr body;
-	};
-
-	struct ExprFunDecl : public ExprLambda
-	{
-		void Accept(Visitor *v) { v->Visit(this); }
-		bool WantsSemi() { return semi; }
-
-		bool semi;
-	};
-
-	struct ExprListComprehension : public Expr
-	{
-		void Accept(Visitor *v) { v->Visit(this); }
-
-		ExprPtr expr;
-		ExprPtrList filters;
-		ExprPtrList generators;
 	};
 
 	struct ExprNumberLiteral : public Expr
@@ -144,8 +131,7 @@ namespace Mond
 			ExprPtr value;
 		};
 
-		ExprPtrList fnEntries;
-		vector<KeyValue> kvEntries;
+		vector<KeyValue> entries;
 	};
 
 	struct ExprSimpleLiteral : public Expr
@@ -179,7 +165,7 @@ namespace Mond
 
 		bool post;
 		ExprPtr value;
-		TokenType op;
+		TokenType type;
 	};
 
 	struct ExprYield : public Expr
@@ -230,6 +216,15 @@ namespace Mond
 		void Accept(Visitor *v) { v->Visit(this); }
 
 		ExprPtr from;
+		StmtPtr body;
+	};
+
+	struct StmtFunDecl : public Stmt
+	{
+		void Accept(Visitor *v) { v->Visit(this); }
+
+		bool varargs;
+		bool sequence;
 		StmtPtr body;
 	};
 

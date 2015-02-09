@@ -164,7 +164,7 @@ bool Parser::CanBeExpr()
 	case KwYield:
 		return true;
 	default:
-		return IsPrefixOperator();
+		return IsPrefixOperator(m_token.type);
 	}
 }
 
@@ -204,13 +204,13 @@ Expr *Parser::ParseExprCore(Precedence p)
 		break;
 	case KwFun:
 	case KwSeq:
-		left = ParseExprFunDecl();
+		left = ParseExprLambda();
 		break;
 	case KwYield:
 		left = ParseExprYield();
 		break;
 	default:
-		if (!IsPrefixOperator())
+		if (!IsPrefixOperator(m_token.type))
 		{
 			m_diag
 				<< m_token.range
@@ -225,9 +225,9 @@ Expr *Parser::ParseExprCore(Precedence p)
 
 	while (true)
 	{
-		if (IsBinaryOperator())
+		if (IsBinaryOperator(m_token.type))
 		{
-			auto pc = GetOperatorPrecedence();
+			auto pc = GetOperatorPrecedence(m_token.type);
 			if (pc <= p)
 			{
 				return left;
@@ -236,7 +236,7 @@ Expr *Parser::ParseExprCore(Precedence p)
 			left = ParseExprBinaryOp(left, pc);
 			continue;
 		}
-		else if (IsPostfixOperator())
+		else if (IsPostfixOperator(m_token.type))
 		{
 			left = ParseExprPostfixOp(left);
 			continue;
@@ -355,57 +355,50 @@ Expr *Parser::ParseExprObjectLiteral()
 
 	while (m_token.type != TokRightBrace)
 	{
-		if (m_token.type == KwFun || m_token.type == KwSeq)
+		expr->entries.push_back(ExprObjectLiteral::KeyValue());
+
+		auto &entry = expr->entries.back();
+		bool wantsExpr = false;
+
+		if (m_token.type == TokIdentifier)
 		{
-			expr->fnEntries.push_back(ExprPtr(ParseExprFunDecl()));
+			entry.key = IdString(EatToken().slice);
+			wantsExpr = m_token.type == TokColon;
+		}
+		else if (m_token.type == TokStringLiteral)
+		{
+			entry.key = LiteralString(EatToken().slice);
+			wantsExpr = true;
 		}
 		else
 		{
-			expr->kvEntries.push_back(ExprObjectLiteral::KeyValue());
+			m_diag
+				<< m_token.range.beg
+				<< Error
+				<< ParseExpectedObjectEntry
+				<< DiagEnd;
+		}
 
-			auto &entry = expr->kvEntries.back();
-			bool wantsExpr = false;
+		if (wantsExpr)
+		{
+			auto colon = EatToken(TokColon);
 
-			if (m_token.type == TokIdentifier)
+			if ((m_token.type == TokIdentifier || m_token.type == TokStringLiteral) && Lookahead().type == TokColon)
 			{
-				entry.key = IdString(EatToken().slice);
-				wantsExpr = m_token.type == TokColon;
-			}
-			else if (m_token.type == TokStringLiteral)
-			{
-				entry.key = LiteralString(EatToken().slice);
-				wantsExpr = true;
+				// Special error handling for a common error while editing:
+				// var x = {
+				//   key1:
+				//   key2: "banana"
+				// };
+				m_diag
+					<< colon.range.end
+					<< Error
+					<< ParseExpectedExpr
+					<< DiagEnd;
 			}
 			else
 			{
-				m_diag
-					<< m_token.range.beg
-					<< Error
-					<< ParseExpectedObjectEntry
-					<< DiagEnd;
-			}
-
-			if (wantsExpr)
-			{
-				auto colon = EatToken(TokColon);
-
-				if ((m_token.type == TokIdentifier || m_token.type == TokStringLiteral) && Lookahead().type == TokColon)
-				{
-					// Special error handling for a common error while editing:
-					// var x = {
-					//   key1:
-					//   key2: "banana"
-					// };
-					m_diag
-						<< colon.range.end
-						<< Error
-						<< ParseExpectedExpr
-						<< DiagEnd;
-				}
-				else
-				{
-					entry.value = ParseExpr();
-				}
+				entry.value = ParseExpr();
 			}
 		}
 
@@ -441,14 +434,7 @@ Expr *Parser::ParseExprArrayLiteral()
 	{
 		expr->elems.push_back(ParseExpr());
 
-		if (m_token.type == TokColon && expr->elems.size() == 1)
-		{
-			auto pos = expr->pos;
-			auto elem = expr->elems[0].release();
-			delete expr;
-			return ParseExprListComprehension(pos, elem);
-		}
-		else if (m_token.type != TokComma)
+		if (m_token.type != TokComma)
 		{
 			break;
 		}
@@ -457,61 +443,6 @@ Expr *Parser::ParseExprArrayLiteral()
 	}
 
 	expr->range.end = ParseTerminator(TokRightBracket, expr->pos, ParseUnterminatedArrayLiteral);
-	m_sema.Visit(expr);
-	return expr;
-}
-
-Expr *Parser::ParseExprFunDecl()
-{
-	auto declType = m_token.type == KwFun ? Decl::Function : Decl::Sequence;
-	auto scopeType = m_token.type == KwFun ? Scope::Function : Scope::Sequence;
-
-	auto expr = new ExprFunDecl;
-	expr->pos = m_token.range.beg;
-	expr->range = m_token.range;
-
-	EatToken();
-
-	if (m_token.type == TokIdentifier)
-	{
-		auto id = EatToken();
-		m_sema.Declare(declType, id.range, IdString(id.slice), expr);
-	}
-
-	SemaScope scope(m_sema, scopeType, expr);
-	ParseArgumentList(expr->varargs);
-
-	if (m_token.type == OpPointy)
-	{
-		auto pointy = EatToken();
-
-		if (m_token.type == TokLeftBrace)
-		{
-			m_diag
-				<< pointy.range
-				<< Info
-				<< ParseUnnecessaryPointyInFun
-				<< DiagEnd;
-		}
-
-		expr->body.reset(ParseStmtLambdaBody());
-		expr->semi = true;
-	}
-	else
-	{
-		expr->body.reset(ParseStmtBlock());
-		expr->semi = false;
-	}
-
-	if (expr->body)
-	{
-		expr->range.end = expr->body->range.end;
-	}
-	else
-	{
-		expr->range.end = m_token.range.beg;
-	}
-
 	m_sema.Visit(expr);
 	return expr;
 }
@@ -629,8 +560,8 @@ Expr *Parser::ParseExprFieldAccess(Expr *left)
 Expr *Parser::ParseExprPrefixOp()
 {
 	auto expr = new ExprUnaryOp();
-	expr->op = m_token.type;
 	expr->pos = m_token.range.beg;
+	expr->type = m_token.type;
 	expr->post = false;
 	expr->range = m_token.range;
 
@@ -653,7 +584,7 @@ Expr *Parser::ParseExprPrefixOp()
 Expr *Parser::ParseExprPostfixOp(Expr *left)
 {
 	auto expr = new ExprUnaryOp;
-	expr->op = m_token.type;
+	expr->type = m_token.type;
 	expr->pos = m_token.range.beg;
 	expr->post = true;
 	expr->value.reset(left);
@@ -726,25 +657,50 @@ Expr *Parser::ParseExprTernaryOp(Expr *left)
 
 Expr *Parser::ParseExprLambda()
 {
+	auto shortHand = m_token.type != KwFun && m_token.type != KwSeq;
+	auto scopeType = m_token.type == KwSeq ? Scope::Sequence : Scope::Function;
+
 	auto expr = new ExprLambda;
 	expr->pos = m_token.range.beg;
 	expr->range = m_token.range;
+	expr->sequence = m_token.type == KwSeq;
 
-	SemaScope scope(m_sema, Scope::Function, expr);
+	SemaScope scope(m_sema, scopeType, expr);
 
-	if (m_token.type == TokIdentifier)
+	if (m_token.type == KwFun || m_token.type == KwSeq)
 	{
-		auto id = EatToken();
-		m_sema.Declare(Decl::Argument, id.range, IdString(id.slice), expr);
+		expr->sequence = m_token.type == KwSeq;
+
+		EatToken();
+		ParseArgumentList(expr->varargs);
+
+		if (m_token.type != OpPointy)
+		{
+			expr->body.reset(ParseStmtBlock());
+			if (expr->body)
+			{
+				expr->range.end = expr->body->range.end;
+			}
+			else
+			{
+				expr->range.end = m_token.range.beg;
+			}
+
+			m_sema.Visit(expr);
+			return expr;
+		}
+	}
+	else if (m_token.type == TokIdentifier)
+	{
+		auto arg = EatToken();
+		m_sema.Declare(Decl::Argument, arg.range, IdString(arg.slice), expr);
 	}
 	else
 	{
 		ParseArgumentList(expr->varargs);
 	}
 
-	EatToken(OpPointy);
-
-	expr->body.reset(ParseStmtLambdaBody());
+	expr->body.reset(ParseStmtLambdaBody(shortHand));
 	if (expr->body)
 	{
 		expr->range.end = expr->body->range.end;
@@ -813,54 +769,6 @@ Expr *Parser::ParseExprArraySlice(Pos pos, Expr *left, Expr *first)
 	return expr;
 }
 
-Expr *Parser::ParseExprListComprehension(Pos pos, Expr *first)
-{
-	auto expr = new ExprListComprehension;
-	expr->pos = pos;
-	expr->expr.reset(first);
-	expr->range.beg = pos;
-
-	SemaScope scope(m_sema, Scope::Block, expr);
-	EatToken();
-
-	while (true)
-	{
-		if (m_token.type == TokIdentifier && Lookahead().type == KwIn)
-		{
-			auto id = EatToken();
-			m_sema.Declare(Decl::Variable, id.range, IdString(id.slice), expr);
-
-			EatToken(KwIn);
-			expr->generators.push_back(ParseExpr());
-		}
-		else if (CanBeExpr())
-		{
-			expr->filters.push_back(ParseExpr());
-		}
-		else
-		{
-			m_diag
-				<< m_token.range.beg
-				<< Error
-				<< ParseExpectedFilterOrGenerator
-				<< DiagEnd;
-		}
-
-		if (m_token.type == TokComma)
-		{
-			EatToken();
-		}
-		else
-		{
-			break;
-		}
-	}
-
-	expr->range.end = ParseTerminator(TokRightBracket, expr->pos, ParseUnterminatedListComprehension);
-	m_sema.Visit(expr);
-	return expr;
-}
-
 // ---------------------------------------------------------------------------
 // Statements
 // ---------------------------------------------------------------------------
@@ -900,6 +808,9 @@ Stmt *Parser::ParseStmtCore()
 		return ParseStmtFor();
 	case KwForeach:
 		return ParseStmtForeach();
+	case KwFun:
+	case KwSeq:
+		return ParseStmtFunDecl();
 	case KwIf:
 		return ParseStmtIfElse();
 	case KwReturn:
@@ -1079,6 +990,45 @@ Stmt *Parser::ParseStmtForeach()
 	else
 	{
 		stmt->range.end = m_token.range.beg;
+	}
+
+	m_sema.Visit(stmt);
+	return stmt;
+}
+
+Stmt *Parser::ParseStmtFunDecl()
+{
+	auto declType = m_token.type == KwFun ? Decl::Function : Decl::Sequence;
+	auto scopeType = m_token.type == KwFun ? Scope::Function : Scope::Sequence;
+
+	auto stmt = new StmtFunDecl;
+	stmt->pos = m_token.range.beg;
+	stmt->range = m_token.range;
+
+	EatToken();
+
+	auto id = EatToken(TokIdentifier);
+	m_sema.Declare(declType, id.range, IdString(id.slice), stmt);
+
+	SemaScope scope(m_sema, scopeType, stmt);
+	ParseArgumentList(stmt->varargs);
+
+	if (m_token.type == OpPointy)
+	{
+		stmt->body.reset(ParseStmtLambdaBody(false));
+		stmt->range.end = EatToken(TokSemicolon).range.end;
+	}
+	else
+	{
+		stmt->body.reset(ParseStmtBlock());
+		if (stmt->body)
+		{
+			stmt->range.end = stmt->body->range.end;
+		}
+		else
+		{
+			stmt->range.end = m_token.range.beg;
+		}
 	}
 
 	m_sema.Visit(stmt);
@@ -1285,24 +1235,26 @@ Stmt *Parser::ParseStmtNakedExpr()
 	stmt->pos = m_token.range.beg;
 	stmt->range = m_token.range;
 	stmt->value.reset(ParseExprCore(Precedence::Invalid));
-
-	if (stmt->value && !stmt->value->WantsSemi())
-	{
-		stmt->range.end = stmt->value->range.end;
-	}
-	else
-	{
-		stmt->range.end = EatToken(TokSemicolon).range.end;
-	}
-
+	stmt->range.end = EatToken(TokSemicolon).range.end;
 	m_sema.Visit(stmt);
 	return stmt;
 }
 
-Stmt *Parser::ParseStmtLambdaBody()
+Stmt * Mond::Parser::ParseStmtLambdaBody(bool isShorthand)
 {
+	auto pointy = EatToken(OpPointy);
+
 	if (m_token.type == TokLeftBrace)
 	{
+		if (!isShorthand)
+		{
+			m_diag
+				<< pointy.range
+				<< Info
+				<< ParseUnnecessaryPointyInFun
+				<< DiagEnd;
+		}
+		
 		return ParseStmtBlock();
 	}
 
@@ -1381,152 +1333,4 @@ void Parser::ParseArgumentList(bool &varargs)
 		}
 	}
 	EatToken(TokRightParen);
-}
-
-// ---------------------------------------------------------------------------
-// Operators
-// ---------------------------------------------------------------------------
-
-bool Parser::IsPrefixOperator() const
-{
-	switch (m_token.type)
-	{
-	case OpSubtract:
-	case OpIncrement:
-	case OpDecrement:
-	case OpBitNot:
-	case OpNot:
-	case OpEllipsis:
-		return true;
-	default:
-		return false;
-	}
-}
-
-bool Parser::IsBinaryOperator() const
-{
-	switch (m_token.type)
-	{
-	case OpAdd:
-	case OpSubtract:
-	case OpMultiply:
-	case OpDivide:
-	case OpModulo:
-	case OpExponent:
-	case OpBitLeftShift:
-	case OpBitRightShift:
-	case OpBitAnd:
-	case OpBitOr:
-	case OpBitXor:
-
-	case OpAssign:
-	case OpAddAssign:
-	case OpSubtractAssign:
-	case OpMultiplyAssign:
-	case OpDivideAssign:
-	case OpModuloAssign:
-	case OpExponentAssign:
-	case OpBitLeftShiftAssign:
-	case OpBitRightShiftAssign:
-	case OpBitAndAssign:
-	case OpBitOrAssign:
-	case OpBitXorAssign:
-
-	case OpEqualTo:
-	case OpNotEqualTo:
-	case OpGreaterThan:
-	case OpGreaterThanOrEqual:
-	case OpLessThan:
-	case OpLessThanOrEqual:
-	case OpConditionalAnd:
-	case OpConditionalOr:
-	case KwIn:
-	case KwNotIn:
-
-	case OpPipeline:
-		return true;
-
-	default:
-		return false;
-	}
-}
-
-bool Parser::IsPostfixOperator() const
-{
-	switch (m_token.type)
-	{
-	case OpIncrement:
-	case OpDecrement:
-		return true;
-	default:
-		return false;
-	}
-}
-
-Precedence Parser::GetOperatorPrecedence()
-{
-	switch (m_token.type)
-	{
-	case OpAssign:
-	case OpAddAssign:
-	case OpSubtractAssign:
-	case OpMultiplyAssign:
-	case OpDivideAssign:
-	case OpModuloAssign:
-	case OpExponentAssign:
-	case OpBitLeftShiftAssign:
-	case OpBitRightShiftAssign:
-	case OpBitAndAssign:
-	case OpBitOrAssign:
-	case OpBitXorAssign:
-		return Precedence::Assign;
-
-	case OpQuestionMark:
-		return Precedence::Ternary;
-
-	case OpConditionalOr:
-		return Precedence::ConditionalOr;
-
-	case OpConditionalAnd:
-		return Precedence::ConditionalAnd;
-
-	case OpEqualTo:
-	case OpNotEqualTo:
-		return Precedence::Equality;
-
-	case OpGreaterThan:
-	case OpGreaterThanOrEqual:
-	case OpLessThan:
-	case OpLessThanOrEqual:
-	case KwIn:
-	case KwNotIn:
-		return Precedence::Relational;
-
-	case OpBitOr:
-		return Precedence::BitOr;
-	case OpBitXor:
-		return Precedence::BitXor;
-	case OpBitAnd:
-		return Precedence::BitAnd;
-
-	case OpBitLeftShift:
-	case OpBitRightShift:
-		return Precedence::BitShift;
-
-	case OpAdd:
-	case OpSubtract:
-		return Precedence::Addition;
-
-	case OpMultiply:
-	case OpDivide:
-	case OpModulo:
-	case OpExponent:
-		return Precedence::Multiplication;
-
-	case OpPipeline:
-		return Precedence::Misc;
-
-	default:
-		throw logic_error("precedence requested for unknown operator");
-	}
 }
