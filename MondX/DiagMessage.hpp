@@ -15,7 +15,6 @@ namespace Mond
 		ParseExpectedStmt,
 		ParseExpectedSwitchCase,
 		ParseExpectedObjectEntry,
-		ParseExpectedFilterOrGenerator,
 
 		ParseMismatchedToken,
 		ParseExpectedTokenGotOther,

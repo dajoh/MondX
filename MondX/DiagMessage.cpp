@@ -26,8 +26,6 @@ const char *Mond::GetDiagMessageFormat(DiagMessage msg)
 		return "expected switch case";
 	case ParseExpectedObjectEntry:
 		return "expected object entry";
-	case ParseExpectedFilterOrGenerator:
-		return "expected filter or generator";
 
 	case ParseMismatchedToken:
 		return "mismatched '%t'";
