@@ -1,4 +1,4 @@
-MondX
+MondX [![Build Status](https://travis-ci.org/dajoh/MondX.svg?branch=master)](https://travis-ci.org/dajoh/MondX)
 -----
 
 MondX is a C++ implementation of the [Mond](https://github.com/Rohansi/Mond) language.
