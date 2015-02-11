@@ -48,7 +48,10 @@ const char *Mond::GetDiagMessageFormat(DiagMessage msg)
 	case SemaUndeclaredId:
 		return "undeclared identifier '%s'";
 	case SemaAlreadyDeclared:
+		return "'%s' already declared";
+	case SemaAlreadyDeclaredAt:
 		return "'%s' already declared at %d:%d";
+
 	case SemaYieldNotInSequence:
 		return "yield can only be used in sequences";
 	case SemaLoopControlNotInLoop:
@@ -59,6 +62,7 @@ const char *Mond::GetDiagMessageFormat(DiagMessage msg)
 		return "duplicate case, already defined at %d:%d";
 	case SemaDuplicateDefaultCase:
 		return "duplicate default case, already defined at %d:%d";
+
 	case SemaExprNotStorable:
 		return "expression not storable";
 	case SemaMutatingConstant:

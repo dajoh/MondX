@@ -22,7 +22,7 @@ namespace Mond
 		AstNode *node;
 	};
 
-	typedef unique_ptr<struct Scope> ScopePtr;
+	typedef shared_ptr<struct Scope> ScopePtr;
 	typedef vector<ScopePtr> ScopePtrList;
 
 	struct Scope
@@ -45,8 +45,10 @@ namespace Mond
 	class Sema : public Visitor
 	{
 	public:
-		Sema(DiagBuilder &diag);
+		Sema(DiagBuilder &diag, ScopePtr builtinScope);
 		~Sema();
+
+		ScopePtr RootScope() const;
 
 		void PushScope(Scope::Type type, AstNode *node);
 		void PopScope();
@@ -90,8 +92,9 @@ namespace Mond
 
 		Decl *FindDecl(const string &name) const;
 
-		Scope *m_scope;
+		Scope *m_curr;
 		ScopePtr m_root;
+		ScopePtr m_builtin;
 		DiagBuilder &m_diag;
 	};
 

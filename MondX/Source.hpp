@@ -37,6 +37,25 @@ namespace Mond
 		const char *m_beg;
 		const char *m_ptr;
 	};
+
+	class FileSource : public Source
+	{
+	public:
+		FileSource(const string &filename);
+
+		string GetLine(int line) const;
+		string GetSlice(Slice s) const;
+		string GetRange(Range r) const;
+
+		void Advance();
+		int Position() const;
+
+		uint32_t Cur() const;
+		uint32_t Peek() const;
+	private:
+		string m_contents;
+		unique_ptr<StringSource> m_source;
+	};
 }
 
 #endif

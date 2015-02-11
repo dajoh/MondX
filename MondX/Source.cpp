@@ -124,3 +124,47 @@ uint32_t StringSource::Peek() const
 {
 	return m_ptr[0] == '\0' ? m_ptr[0] : m_ptr[1];
 }
+
+FileSource::FileSource(const string &filename)
+{
+	ifstream file;
+	file.exceptions(std::ios::badbit | std::ios::failbit);
+	file.open(filename);
+	m_contents = string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+	m_source.reset(new StringSource(m_contents.c_str()));
+}
+
+string FileSource::GetLine(int line) const
+{
+	return m_source->GetLine(line);
+}
+
+string FileSource::GetSlice(Slice s) const
+{
+	return m_source->GetSlice(s);
+}
+
+string FileSource::GetRange(Range r) const
+{
+	return m_source->GetRange(r);
+}
+
+void FileSource::Advance()
+{
+	m_source->Advance();
+}
+
+int FileSource::Position() const
+{
+	return m_source->Position();
+}
+
+uint32_t FileSource::Cur() const
+{
+	return m_source->Cur();
+}
+
+uint32_t FileSource::Peek() const
+{
+	return m_source->Peek();
+}

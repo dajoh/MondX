@@ -7,6 +7,7 @@
 #include <vector>
 #include <memory>
 #include <iomanip>
+#include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <functional>
@@ -20,6 +21,8 @@ namespace Mond
 	using std::string;
 	using std::vector;
 	using std::function;
+	using std::ifstream;
+	using std::shared_ptr;
 	using std::unique_ptr;
 	using std::logic_error;
 	using std::stringstream;

@@ -3,63 +3,87 @@
 
 using namespace Mond;
 
-Sema::Sema(DiagBuilder &diag) : m_root(new Scope()), m_diag(diag)
+Sema::Sema(DiagBuilder &diag, ScopePtr builtinScope) :
+	m_root(new Scope()),
+	m_builtin(builtinScope),
+	m_diag(diag)
 {
-	m_root->type = Scope::Block;
-	m_root->node = NULL;
-	m_root->parent = NULL;
-
-	m_scope = m_root.get();
+	m_curr = m_root.get();
+	m_curr->type = Scope::Block;
+	m_curr->node = NULL;
+	m_curr->parent = builtinScope.get();
 }
 
 Sema::~Sema()
 {
 }
 
+ScopePtr Sema::RootScope() const
+{
+	return m_root;
+}
+
 void Sema::PushScope(Scope::Type type, AstNode *node)
 {
-	m_scope->children.push_back(ScopePtr(new Scope()));
+	ScopePtr newScope(new Scope());
+	newScope->type = type;
+	newScope->node = node;
+	newScope->parent = m_curr;
 
-	auto &scope = m_scope->children.back();
-	scope->type = type;
-	scope->node = node;
-	scope->parent = m_scope;
-
-	m_scope = scope.get();
+	m_curr->children.push_back(newScope);
+	m_curr = newScope.get();
 }
 
 void Sema::PopScope()
 {
-	m_scope = m_scope->parent;
+	m_curr = m_curr->parent;
 }
 
 void Sema::Declare(Decl::Type type, Range range, const string &name, AstNode *node)
 {
-	Scope *scope = m_scope;
+	bool builtin = false;
+	Scope *scope = m_curr;
 	do
 	{
 		auto it = scope->decls.find(name);
 		if (it != scope->decls.end())
 		{
-			m_diag
-				<< range
-				<< Error
-				<< SemaAlreadyDeclared
-				<< name
-				<< it->second.range.beg.line
-				<< it->second.range.beg.column
-				<< DiagEnd;
+			if (!builtin)
+			{
+				m_diag
+					<< range
+					<< Error
+					<< SemaAlreadyDeclaredAt
+					<< name
+					<< it->second.range.beg.line
+					<< it->second.range.beg.column
+					<< DiagEnd;
+			}
+			else
+			{
+				m_diag
+					<< range
+					<< Error
+					<< SemaAlreadyDeclared
+					<< name
+					<< DiagEnd;
+			}
+
 			break;
 		}
 
 		scope = scope->parent;
+		if (scope == m_builtin.get())
+		{
+			builtin = true;
+		}
 	} while (scope != NULL);
 
 	Decl decl;
 	decl.type = type;
 	decl.range = range;
 	decl.node = node;
-	m_scope->decls[name] = decl;
+	m_curr->decls[name] = decl;
 }
 
 void Sema::Visit(Expr *)
@@ -248,7 +272,7 @@ void Sema::Visit(StmtWhile *)
 
 bool Sema::IsInSeq() const
 {
-	Scope *scope = m_scope;
+	Scope *scope = m_curr;
 	do
 	{
 		switch (scope->type)
@@ -269,7 +293,7 @@ bool Sema::IsInSeq() const
 
 bool Sema::IsInLoop() const
 {
-	Scope *scope = m_scope;
+	Scope *scope = m_curr;
 	do
 	{
 		switch (scope->type)
@@ -323,7 +347,7 @@ void Sema::CheckMutable(Expr *expr) const
 
 Decl *Sema::FindDecl(const string &name) const
 {
-	Scope *scope = m_scope;
+	Scope *scope = m_curr;
 	do
 	{
 		auto it = scope->decls.find(name);

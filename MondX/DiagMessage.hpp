@@ -28,11 +28,14 @@ namespace Mond
 
 		SemaUndeclaredId,
 		SemaAlreadyDeclared,
+		SemaAlreadyDeclaredAt,
+
 		SemaYieldNotInSequence,
 		SemaLoopControlNotInLoop,
 		SemaCaseValueNotConstant,
 		SemaDuplicateCaseValue,
 		SemaDuplicateDefaultCase,
+
 		SemaExprNotStorable,
 		SemaMutatingConstant,
 	};
