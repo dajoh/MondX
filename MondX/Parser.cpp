@@ -377,6 +377,7 @@ Expr *Parser::ParseExprObjectLiteral()
 				<< Error
 				<< ParseExpectedObjectEntry
 				<< DiagEnd;
+			break;
 		}
 
 		if (wantsExpr)
