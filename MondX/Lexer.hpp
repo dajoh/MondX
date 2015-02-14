@@ -16,6 +16,7 @@ namespace Mond
 	private:
 		void Advance();
 
+		Token &MakeEndOfLine();
 		Token &MakeWhitespace();
 		Token &MakeLineComment();
 		Token &MakeBlockComment();
@@ -78,7 +79,7 @@ namespace Mond
 
 	inline bool IsWhitespace(uint32_t c)
 	{
-		return (c == ' ' || c == '\t' || c == '\r' || c == '\n');
+		return (c == ' ' || c == '\t');
 	}
 }
 

@@ -25,6 +25,7 @@
 #endif
 
 MOND_TOKEN(EndOfFile,     "end of file")
+MOND_TOKEN(EndOfLine,     "end of line")
 MOND_TOKEN(Unknown,       "unknown")
 MOND_TOKEN(Completion,    "code completion")
 MOND_TOKEN(WhiteSpace,    "white space")
