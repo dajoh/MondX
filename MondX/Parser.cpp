@@ -15,16 +15,19 @@ Parser::Parser(DiagBuilder &diag, Source &source, Lexer &lexer, Sema &sema) :
 	Advance();
 }
 
-StmtPtrList Parser::ParseFile()
+StmtPtr Parser::ParseFile()
 {
-	StmtPtrList stmts;
+	auto stmt = new StmtBlock;
+	stmt->pos = m_token.range.beg;
+	stmt->range.beg = m_token.range.beg;
 
 	while (m_token.type != TokEndOfFile)
 	{
-		stmts.push_back(ParseStmt());
+		stmt->statements.push_back(ParseStmt());
 	}
 
-	return stmts;
+	stmt->range.end = m_token.range.beg;
+	return StmtPtr(stmt);
 }
 
 ExprPtr Parser::ParseExpr()

@@ -12,7 +12,7 @@ namespace Mond
 	public:
 		Parser(DiagBuilder &diag, Source &source, Lexer &lexer, Sema &sema);
 
-		StmtPtrList ParseFile();
+		StmtPtr ParseFile();
 
 		ExprPtr ParseExpr();
 		StmtPtr ParseStmt();

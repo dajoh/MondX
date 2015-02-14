@@ -9,7 +9,7 @@ using namespace Mond;
 template<class T>
 void VisitSelf(Visitor *v, T t)
 {
-	v->Visit((Expr *)t);
+	v->Visit((AstNode *)t);
 }
 
 void Mond::AcceptChild(Visitor *v, AstNode *n)

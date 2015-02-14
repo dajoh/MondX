@@ -56,8 +56,8 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	StmtPtr builtinBlock;
 	ScopePtr builtinScope;
-	StmtPtrList builtinStmts;
 
 	if (builtinFile != "")
 	{
@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
 		Sema sema(diag, NULL);
 		Parser parser(diag, source, lexer, sema);
 
-		builtinStmts = parser.ParseFile();
+		builtinBlock = parser.ParseFile();
 		builtinScope = sema.RootScope();
 	}
 
