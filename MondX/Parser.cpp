@@ -52,6 +52,7 @@ void Parser::More()
 
 		switch (token.type)
 		{
+		case TokEndOfLine:
 		case TokUnknown:
 		case TokCompletion:
 		case TokWhiteSpace:
@@ -172,9 +173,9 @@ bool Parser::CanBeExpr()
 }
 
 // TODO: Associativity.
-Expr *Parser::ParseExprCore(Precedence p)
+ExprPtr Parser::ParseExprCore(Precedence p)
 {
-	Expr *left;
+	ExprPtr left;
 
 	switch (m_token.type)
 	{
@@ -267,7 +268,7 @@ Expr *Parser::ParseExprCore(Precedence p)
 	throw logic_error("unreachable in ParseExprCore");
 }
 
-Expr *Parser::ParseExprId()
+ExprPtr Parser::ParseExprId()
 {
 	if (Lookahead().type == OpPointy)
 	{
@@ -281,10 +282,10 @@ Expr *Parser::ParseExprId()
 	EatToken();
 
 	m_sema.Visit(expr);
-	return expr;
+	return ExprPtr(expr);
 }
 
-Expr *Parser::ParseExprStringLiteral()
+ExprPtr Parser::ParseExprStringLiteral()
 {
 	auto expr = new ExprStringLiteral;
 	expr->pos = m_token.range.beg;
@@ -293,10 +294,10 @@ Expr *Parser::ParseExprStringLiteral()
 	EatToken();
 
 	m_sema.Visit(expr);
-	return expr;
+	return ExprPtr(expr);
 }
 
-Expr *Parser::ParseExprNumberLiteral()
+ExprPtr Parser::ParseExprNumberLiteral()
 {
 	auto expr = new ExprNumberLiteral;
 	expr->pos = m_token.range.beg;
@@ -305,10 +306,10 @@ Expr *Parser::ParseExprNumberLiteral()
 	EatToken();
 
 	m_sema.Visit(expr);
-	return expr;
+	return ExprPtr(expr);
 }
 
-Expr *Parser::ParseExprSimpleLiteral()
+ExprPtr Parser::ParseExprSimpleLiteral()
 {
 	auto expr = new ExprSimpleLiteral;
 	expr->pos = m_token.range.beg;
@@ -317,10 +318,10 @@ Expr *Parser::ParseExprSimpleLiteral()
 	EatToken();
 
 	m_sema.Visit(expr);
-	return expr;
+	return ExprPtr(expr);
 }
 
-Expr *Parser::ParseExprParens()
+ExprPtr Parser::ParseExprParens()
 {
 	if (Lookahead().type == TokIdentifier)
 	{
@@ -345,10 +346,10 @@ Expr *Parser::ParseExprParens()
 		expr->Accept(&m_sema);
 	}
 
-	return expr;
+	return ExprPtr(expr);
 }
 
-Expr *Parser::ParseExprObjectLiteral()
+ExprPtr Parser::ParseExprObjectLiteral()
 {
 	auto expr = new ExprObjectLiteral;
 	expr->pos = m_token.range.beg;
@@ -358,9 +359,7 @@ Expr *Parser::ParseExprObjectLiteral()
 
 	while (m_token.type != TokRightBrace)
 	{
-		expr->entries.resize(expr->entries.size() + 1);
-
-		auto &entry = expr->entries.back();
+		auto entry = ExprObjectLiteral::KeyValue();
 		bool wantsExpr = false;
 
 		if (m_token.type == TokIdentifier)
@@ -406,6 +405,8 @@ Expr *Parser::ParseExprObjectLiteral()
 			}
 		}
 
+		expr->entries.push_back(entry);
+
 		if (m_token.type == TokComma)
 		{
 			EatToken();
@@ -423,10 +424,10 @@ Expr *Parser::ParseExprObjectLiteral()
 
 	expr->range.end = ParseTerminator(TokRightBrace, expr->pos, ParseUnterminatedObjectLiteral);
 	m_sema.Visit(expr);
-	return expr;
+	return ExprPtr(expr);
 }
 
-Expr *Parser::ParseExprArrayLiteral()
+ExprPtr Parser::ParseExprArrayLiteral()
 {
 	auto expr = new ExprArrayLiteral;
 	expr->pos = m_token.range.beg;
@@ -448,10 +449,10 @@ Expr *Parser::ParseExprArrayLiteral()
 
 	expr->range.end = ParseTerminator(TokRightBracket, expr->pos, ParseUnterminatedArrayLiteral);
 	m_sema.Visit(expr);
-	return expr;
+	return ExprPtr(expr);
 }
 
-Expr *Parser::ParseExprYield()
+ExprPtr Parser::ParseExprYield()
 {
 	auto expr = new ExprYield;
 	expr->pos = m_token.range.beg;
@@ -473,14 +474,14 @@ Expr *Parser::ParseExprYield()
 	}
 
 	m_sema.Visit(expr);
-	return expr;
+	return ExprPtr(expr);
 }
 
-Expr *Parser::ParseExprCall(Expr *left)
+ExprPtr Parser::ParseExprCall(ExprPtr left)
 {
 	auto expr = new ExprCall;
 	expr->pos = m_token.range.beg;
-	expr->left.reset(left);
+	expr->left = left;
 	expr->range = left->range;
 
 	EatToken();
@@ -504,14 +505,14 @@ Expr *Parser::ParseExprCall(Expr *left)
 
 	expr->range.end = ParseTerminator(TokRightParen, expr->pos, ParseUnterminatedFunctionCall);
 	m_sema.Visit(expr);
-	return expr;
+	return ExprPtr(expr);
 }
 
-Expr *Parser::ParseExprIndexAccess(Expr *left)
+ExprPtr Parser::ParseExprIndexAccess(ExprPtr left)
 {
 	auto expr = new ExprIndexAccess;
 	expr->pos = m_token.range.beg;
-	expr->left.reset(left);
+	expr->left = left;
 	expr->range = m_token.range;
 
 	EatToken();
@@ -519,7 +520,7 @@ Expr *Parser::ParseExprIndexAccess(Expr *left)
 	if (m_token.type == TokColon)
 	{
 		auto pos = expr->pos;
-		auto left = expr->left.release();
+		auto left = expr->left;
 		delete expr;
 		return ParseExprArraySlice(pos, left, NULL);
 	}
@@ -529,8 +530,8 @@ Expr *Parser::ParseExprIndexAccess(Expr *left)
 	if (m_token.type == TokColon)
 	{
 		auto pos = expr->pos;
-		auto left = expr->left.release();
-		auto index = expr->index.release();
+		auto left = expr->left;
+		auto index = expr->index;
 		delete expr;
 		return ParseExprArraySlice(pos, left, index);
 	}
@@ -542,14 +543,14 @@ Expr *Parser::ParseExprIndexAccess(Expr *left)
 
 	expr->range.end = EatToken(TokRightBracket).range.end;
 	m_sema.Visit(expr);
-	return expr;
+	return ExprPtr(expr);
 }
 
-Expr *Parser::ParseExprFieldAccess(Expr *left)
+ExprPtr Parser::ParseExprFieldAccess(ExprPtr left)
 {
 	auto expr = new ExprFieldAccess;
 	expr->pos = m_token.range.beg;
-	expr->left.reset(left);
+	expr->left = left;
 	expr->range = left->range;
 
 	EatToken();
@@ -558,10 +559,10 @@ Expr *Parser::ParseExprFieldAccess(Expr *left)
 	expr->name = IdString(member.slice);
 	expr->range.end = member.range.end;
 	m_sema.Visit(expr);
-	return expr;
+	return ExprPtr(expr);
 }
 
-Expr *Parser::ParseExprPrefixOp()
+ExprPtr Parser::ParseExprPrefixOp()
 {
 	auto expr = new ExprUnaryOp();
 	expr->pos = m_token.range.beg;
@@ -582,16 +583,16 @@ Expr *Parser::ParseExprPrefixOp()
 	}
 
 	m_sema.Visit(expr);
-	return expr;
+	return ExprPtr(expr);
 }
 
-Expr *Parser::ParseExprPostfixOp(Expr *left)
+ExprPtr Parser::ParseExprPostfixOp(ExprPtr left)
 {
 	auto expr = new ExprUnaryOp;
 	expr->type = m_token.type;
 	expr->pos = m_token.range.beg;
 	expr->post = true;
-	expr->value.reset(left);
+	expr->value = left;
 	expr->range = m_token.range;
 
 	EatToken();
@@ -602,19 +603,19 @@ Expr *Parser::ParseExprPostfixOp(Expr *left)
 	}
 
 	m_sema.Visit(expr);
-	return expr;
+	return ExprPtr(expr);
 }
 
-Expr *Parser::ParseExprBinaryOp(Expr *left, Precedence p)
+ExprPtr Parser::ParseExprBinaryOp(ExprPtr left, Precedence p)
 {
 	auto expr = new ExprBinaryOp;
 	expr->pos = m_token.range.beg;
 	expr->type = m_token.type;
-	expr->left.reset(left);
+	expr->left = left;
 
 	EatToken();
 
-	expr->right.reset(ParseExprCore(p));
+	expr->right = ParseExprCore(p);
 
 	if (expr->right)
 	{
@@ -626,14 +627,14 @@ Expr *Parser::ParseExprBinaryOp(Expr *left, Precedence p)
 	}
 
 	m_sema.Visit(expr);
-	return expr;
+	return ExprPtr(expr);
 }
 
-Expr *Parser::ParseExprTernaryOp(Expr *left)
+ExprPtr Parser::ParseExprTernaryOp(ExprPtr left)
 {
 	auto expr = new ExprTernaryOp;
 	expr->pos = m_token.range.beg;
-	expr->cond.reset(left);
+	expr->cond = left;
 	expr->range = m_token.range;
 
 	EatToken();
@@ -656,20 +657,21 @@ Expr *Parser::ParseExprTernaryOp(Expr *left)
 	}
 
 	m_sema.Visit(expr);
-	return expr;
+	return ExprPtr(expr);
 }
 
-Expr *Parser::ParseExprLambda()
+ExprPtr Parser::ParseExprLambda()
 {
 	auto shortHand = m_token.type != KwFun && m_token.type != KwSeq;
 	auto scopeType = m_token.type == KwSeq ? Scope::Sequence : Scope::Function;
 
 	auto expr = new ExprLambda;
+	auto eptr = ExprPtr(expr);
 	expr->pos = m_token.range.beg;
 	expr->range = m_token.range;
 	expr->sequence = m_token.type == KwSeq;
 
-	SemaScope scope(m_sema, scopeType, expr);
+	SemaScope scope(m_sema, scopeType, eptr);
 
 	if (m_token.type == KwFun || m_token.type == KwSeq)
 	{
@@ -680,7 +682,7 @@ Expr *Parser::ParseExprLambda()
 
 		if (m_token.type != OpPointy)
 		{
-			expr->body.reset(ParseStmtBlock());
+			expr->body = ParseStmtBlock();
 			if (expr->body)
 			{
 				expr->range.end = expr->body->range.end;
@@ -691,20 +693,20 @@ Expr *Parser::ParseExprLambda()
 			}
 
 			m_sema.Visit(expr);
-			return expr;
+			return ExprPtr(expr);
 		}
 	}
 	else if (m_token.type == TokIdentifier)
 	{
 		auto arg = EatToken();
-		m_sema.Declare(Decl::Argument, arg.range, IdString(arg.slice), expr);
+		m_sema.Declare(Decl::Argument, arg.range, IdString(arg.slice), eptr);
 	}
 	else
 	{
 		ParseArgumentList(expr->varargs);
 	}
 
-	expr->body.reset(ParseStmtLambdaBody(shortHand));
+	expr->body = ParseStmtLambdaBody(shortHand);
 	if (expr->body)
 	{
 		expr->range.end = expr->body->range.end;
@@ -715,10 +717,10 @@ Expr *Parser::ParseExprLambda()
 	}
 
 	m_sema.Visit(expr);
-	return expr;
+	return eptr;
 }
 
-Expr *Parser::ParseExprCondition()
+ExprPtr Parser::ParseExprCondition()
 {
 	EatToken(TokLeftParen);
 	auto expr = ParseExprCore(Precedence::Invalid);
@@ -729,15 +731,15 @@ Expr *Parser::ParseExprCondition()
 		expr->Accept(&m_sema);
 	}
 
-	return expr;
+	return ExprPtr(expr);
 }
 
-Expr *Parser::ParseExprArraySlice(Pos pos, Expr *left, Expr *first)
+ExprPtr Parser::ParseExprArraySlice(Pos pos, ExprPtr left, ExprPtr first)
 {
 	auto expr = new ExprArraySlice;
 	expr->pos = pos;
-	expr->left.reset(left);
-	expr->start.reset(first);
+	expr->left = left;
+	expr->start = first;
 
 	if (expr->left)
 	{
@@ -750,34 +752,34 @@ Expr *Parser::ParseExprArraySlice(Pos pos, Expr *left, Expr *first)
 	{
 		expr->range.end = EatToken().range.end;
 		m_sema.Visit(expr);
-		return expr;
+		return ExprPtr(expr);
 	}
 
 	if (CanBeExpr())
 	{
-		expr->end.reset(ParseExprCore(Precedence::Invalid));
+		expr->end = ParseExprCore(Precedence::Invalid);
 
 		if (m_token.type == TokRightBracket)
 		{
 			expr->range.end = EatToken().range.end;
 			m_sema.Visit(expr);
-			return expr;
+			return ExprPtr(expr);
 		}
 	}
 
 	EatToken(TokColon);
 
-	expr->step.reset(ParseExprCore(Precedence::Invalid));
+	expr->step = ParseExprCore(Precedence::Invalid);
 	expr->range.end = ParseTerminator(TokRightBracket, expr->pos, ParseUnterminatedArraySlice);
 	m_sema.Visit(expr);
-	return expr;
+	return ExprPtr(expr);
 }
 
 // ---------------------------------------------------------------------------
 // Statements
 // ---------------------------------------------------------------------------
 
-Stmt *Parser::ParseStmtCore()
+StmtPtr Parser::ParseStmtCore()
 {
 	switch (m_token.type)
 	{
@@ -844,13 +846,14 @@ Stmt *Parser::ParseStmtCore()
 	return NULL;
 }
 
-Stmt *Parser::ParseStmtBlock()
+StmtPtr Parser::ParseStmtBlock()
 {
 	auto stmt = new StmtBlock;
+	auto sptr = StmtPtr(stmt);
 	stmt->pos = m_token.range.beg;
 	stmt->range = m_token.range;
 
-	SemaScope scope(m_sema, Scope::Block, stmt);
+	SemaScope scope(m_sema, Scope::Block, sptr);
 	EatToken(TokLeftBrace);
 
 	while (m_token.type != TokRightBrace && m_token.type != TokEndOfFile)
@@ -860,10 +863,10 @@ Stmt *Parser::ParseStmtBlock()
 
 	stmt->range.end = EatToken(TokRightBrace).range.end;
 	m_sema.Visit(stmt);
-	return stmt;
+	return sptr;
 }
 
-Stmt *Parser::ParseStmtControl()
+StmtPtr Parser::ParseStmtControl()
 {
 	auto stmt = new StmtControl;
 	stmt->pos = m_token.range.beg;
@@ -874,40 +877,42 @@ Stmt *Parser::ParseStmtControl()
 
 	stmt->range.end = EatToken(TokSemicolon).range.end;
 	m_sema.Visit(stmt);
-	return stmt;
+	return StmtPtr(stmt);
 }
 
-Stmt *Parser::ParseStmtDoWhile()
+StmtPtr Parser::ParseStmtDoWhile()
 {
 	auto stmt = new StmtDoWhile;
+	auto sptr = StmtPtr(stmt);
 	stmt->pos = m_token.range.beg;
 	stmt->range = m_token.range;
 
-	SemaScope scope(m_sema, Scope::Loop, stmt);
+	SemaScope scope(m_sema, Scope::Loop, sptr);
 	EatToken();
-	stmt->body.reset(ParseStmtCore());
+	stmt->body = ParseStmtCore();
 	EatToken(KwWhile);
-	stmt->cond.reset(ParseExprCondition());
+	stmt->cond = ParseExprCondition();
 
 	stmt->range.end = EatToken(TokSemicolon).range.end;
 	m_sema.Visit(stmt);
-	return stmt;
+	return sptr;
 }
 
-Stmt *Parser::ParseStmtFor()
+StmtPtr Parser::ParseStmtFor()
 {
 	auto stmt = new StmtFor;
+	auto sptr = StmtPtr(stmt);
 	stmt->pos = m_token.range.beg;
 	stmt->range = m_token.range;
 
-	SemaScope scope(m_sema, Scope::Loop, stmt);
+	SemaScope scope(m_sema, Scope::Loop, sptr);
 	EatToken();
 
 	EatToken(TokLeftParen);
 	{
 		if (m_token.type == KwVar || m_token.type == KwConst)
 		{
-			stmt->init.reset(ParseStmtVarDecl());
+			stmt->init = ParseStmtVarDecl();
 		}
 		else
 		{
@@ -953,7 +958,7 @@ Stmt *Parser::ParseStmtFor()
 	}
 	EatToken(TokRightParen);
 
-	stmt->body.reset(ParseStmtCore());
+	stmt->body = ParseStmtCore();
 	if (stmt->body)
 	{
 		stmt->range.end = stmt->body->range.end;
@@ -964,29 +969,30 @@ Stmt *Parser::ParseStmtFor()
 	}
 
 	m_sema.Visit(stmt);
-	return stmt;
+	return sptr;
 }
 
-Stmt *Parser::ParseStmtForeach()
+StmtPtr Parser::ParseStmtForeach()
 {
 	auto stmt = new StmtForeach;
+	auto sptr = StmtPtr(stmt);
 	stmt->pos = m_token.range.beg;
 	stmt->range = m_token.range;
 
-	SemaScope scope(m_sema, Scope::Loop, stmt);
+	SemaScope scope(m_sema, Scope::Loop, sptr);
 	EatToken();
 
 	EatToken(TokLeftParen);
 	{
 		EatToken(KwVar);
 		auto id = EatToken(TokIdentifier);
-		m_sema.Declare(Decl::Variable, id.range, IdString(id.slice), stmt);
+		m_sema.Declare(Decl::Variable, id.range, IdString(id.slice), sptr);
 		EatToken(KwIn);
 		stmt->from = ParseExpr();
 	}
 	EatToken(TokRightParen);
 
-	stmt->body.reset(ParseStmtCore());
+	stmt->body = ParseStmtCore();
 	if (stmt->body)
 	{
 		stmt->range.end = stmt->body->range.end;
@@ -997,34 +1003,35 @@ Stmt *Parser::ParseStmtForeach()
 	}
 
 	m_sema.Visit(stmt);
-	return stmt;
+	return sptr;
 }
 
-Stmt *Parser::ParseStmtFunDecl()
+StmtPtr Parser::ParseStmtFunDecl()
 {
 	auto declType = m_token.type == KwFun ? Decl::Function : Decl::Sequence;
 	auto scopeType = m_token.type == KwFun ? Scope::Function : Scope::Sequence;
 
 	auto stmt = new StmtFunDecl;
+	auto sptr = StmtPtr(stmt);
 	stmt->pos = m_token.range.beg;
 	stmt->range = m_token.range;
 
 	EatToken();
 
 	auto id = EatToken(TokIdentifier);
-	m_sema.Declare(declType, id.range, IdString(id.slice), stmt);
+	m_sema.Declare(declType, id.range, IdString(id.slice), sptr);
 
-	SemaScope scope(m_sema, scopeType, stmt);
+	SemaScope scope(m_sema, scopeType, sptr);
 	ParseArgumentList(stmt->varargs);
 
 	if (m_token.type == OpPointy)
 	{
-		stmt->body.reset(ParseStmtLambdaBody(false));
+		stmt->body = ParseStmtLambdaBody(false);
 		stmt->range.end = EatToken(TokSemicolon).range.end;
 	}
 	else
 	{
-		stmt->body.reset(ParseStmtBlock());
+		stmt->body = ParseStmtBlock();
 		if (stmt->body)
 		{
 			stmt->range.end = stmt->body->range.end;
@@ -1036,25 +1043,26 @@ Stmt *Parser::ParseStmtFunDecl()
 	}
 
 	m_sema.Visit(stmt);
-	return stmt;
+	return sptr;
 }
 
-Stmt *Parser::ParseStmtIfElse()
+StmtPtr Parser::ParseStmtIfElse()
 {
 	auto stmt = new StmtIfElse;
+	auto sptr = StmtPtr(stmt);
 	stmt->pos = m_token.range.beg;
 	stmt->range = m_token.range;
 
-	SemaScope scope(m_sema, Scope::Block, stmt);
+	SemaScope scope(m_sema, Scope::Block, sptr);
 	EatToken();
 
-	stmt->cond.reset(ParseExprCondition());
-	stmt->thenBody.reset(ParseStmtCore());
+	stmt->cond = ParseExprCondition();
+	stmt->thenBody = ParseStmtCore();
 
 	if (m_token.type == KwElse)
 	{
 		EatToken();
-		stmt->elseBody.reset(ParseStmtCore());
+		stmt->elseBody = ParseStmtCore();
 	}
 
 	if (stmt->elseBody)
@@ -1071,10 +1079,10 @@ Stmt *Parser::ParseStmtIfElse()
 	}
 
 	m_sema.Visit(stmt);
-	return stmt;
+	return sptr;
 }
 
-Stmt *Parser::ParseStmtReturn()
+StmtPtr Parser::ParseStmtReturn()
 {
 	auto stmt = new StmtReturn;
 	stmt->pos = m_token.range.beg;
@@ -1089,13 +1097,14 @@ Stmt *Parser::ParseStmtReturn()
 
 	stmt->range.end = EatToken(TokSemicolon).range.end;
 	m_sema.Visit(stmt);
-	return stmt;
+	return StmtPtr(stmt);
 }
 
-Stmt *Parser::ParseStmtVarDecl()
+StmtPtr Parser::ParseStmtVarDecl()
 {
 	auto type = m_token.type == KwVar ? Decl::Variable : Decl::Constant;
 	auto stmt = new StmtVarDecl;
+	auto sptr = StmtPtr(stmt);
 	stmt->pos = m_token.range.beg;
 	stmt->range = m_token.range;
 
@@ -1104,7 +1113,7 @@ Stmt *Parser::ParseStmtVarDecl()
 	while (true)
 	{
 		auto id = EatToken(TokIdentifier);
-		m_sema.Declare(type, id.range, IdString(id.slice), stmt);
+		m_sema.Declare(type, id.range, IdString(id.slice), sptr);
 
 		if (m_token.type == TokComma || m_token.type == TokSemicolon)
 		{
@@ -1142,25 +1151,25 @@ Stmt *Parser::ParseStmtVarDecl()
 
 	stmt->range.end = EatToken(TokSemicolon).range.end;
 	m_sema.Visit(stmt);
-	return stmt;
+	return sptr;
 }
 
-Stmt *Parser::ParseStmtSwitch()
+StmtPtr Parser::ParseStmtSwitch()
 {
 	auto stmt = new StmtSwitch;
+	auto sptr = StmtPtr(stmt);
 	stmt->pos = m_token.range.beg;
 	stmt->range = m_token.range;
 
-	SemaScope scope(m_sema, Scope::Block, stmt);
+	SemaScope scope(m_sema, Scope::Block, sptr);
 	EatToken();
-	stmt->value.reset(ParseExprCondition());
+	stmt->value = ParseExprCondition();
 	EatToken(TokLeftBrace);
 
 	while (m_token.type != TokRightBrace && m_token.type != TokEndOfFile)
 	{
-		stmt->cases.resize(stmt->cases.size() + 1);
+		auto current = StmtSwitch::Case();
 
-		auto &current = stmt->cases.back();
 		current.headRange.beg = m_token.range.beg;
 
 		if (m_token.type == KwCase)
@@ -1201,24 +1210,27 @@ Stmt *Parser::ParseStmtSwitch()
 
 			break;
 		}
+
+		stmt->cases.push_back(current);
 	}
 
 	stmt->range.end = EatToken(TokRightBrace).range.end;
 	m_sema.Visit(stmt);
-	return stmt;
+	return sptr;
 }
 
-Stmt *Parser::ParseStmtWhile()
+StmtPtr Parser::ParseStmtWhile()
 {
 	auto stmt = new StmtWhile;
+	auto sptr = StmtPtr(stmt);
 	stmt->pos = m_token.range.beg;
 	stmt->range = m_token.range;
 
-	SemaScope scope(m_sema, Scope::Loop, stmt);
+	SemaScope scope(m_sema, Scope::Loop, sptr);
 	EatToken();
 
-	stmt->cond.reset(ParseExprCondition());
-	stmt->body.reset(ParseStmtCore());
+	stmt->cond = ParseExprCondition();
+	stmt->body = ParseStmtCore();
 
 	if (stmt->body)
 	{
@@ -1230,21 +1242,21 @@ Stmt *Parser::ParseStmtWhile()
 	}
 
 	m_sema.Visit(stmt);
-	return stmt;
+	return sptr;
 }
 
-Stmt *Parser::ParseStmtNakedExpr()
+StmtPtr Parser::ParseStmtNakedExpr()
 {
 	auto stmt = new StmtNakedExpr;
 	stmt->pos = m_token.range.beg;
 	stmt->range = m_token.range;
-	stmt->value.reset(ParseExprCore(Precedence::Invalid));
+	stmt->value = ParseExprCore(Precedence::Invalid);
 	stmt->range.end = EatToken(TokSemicolon).range.end;
 	m_sema.Visit(stmt);
-	return stmt;
+	return StmtPtr(stmt);
 }
 
-Stmt * Mond::Parser::ParseStmtLambdaBody(bool isShorthand)
+StmtPtr  Mond::Parser::ParseStmtLambdaBody(bool isShorthand)
 {
 	auto pointy = EatToken(OpPointy);
 
@@ -1258,7 +1270,7 @@ Stmt * Mond::Parser::ParseStmtLambdaBody(bool isShorthand)
 				<< ParseUnnecessaryPointyInFun
 				<< DiagEnd;
 		}
-		
+
 		return ParseStmtBlock();
 	}
 
@@ -1266,7 +1278,7 @@ Stmt * Mond::Parser::ParseStmtLambdaBody(bool isShorthand)
 	stmt->pos = m_token.range.beg;
 	stmt->range = m_token.range;
 
-	stmt->value.reset(ParseExprCore(Precedence::Invalid));
+	stmt->value = ParseExprCore(Precedence::Invalid);
 	if (stmt->value)
 	{
 		stmt->range.end = stmt->value->range.end;
@@ -1277,7 +1289,7 @@ Stmt * Mond::Parser::ParseStmtLambdaBody(bool isShorthand)
 	}
 
 	m_sema.Visit(stmt);
-	return stmt;
+	return StmtPtr(stmt);
 }
 
 // ---------------------------------------------------------------------------

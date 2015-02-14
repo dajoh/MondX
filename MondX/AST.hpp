@@ -26,10 +26,13 @@ namespace Mond
 	{
 	};
 
-	typedef unique_ptr<Expr> ExprPtr;
+	typedef shared_ptr<AstNode> AstNodePtr;
+	typedef vector<AstNodePtr> AstNodePtrList;
+
+	typedef shared_ptr<Expr> ExprPtr;
 	typedef vector<ExprPtr> ExprPtrList;
 
-	typedef unique_ptr<Stmt> StmtPtr;
+	typedef shared_ptr<Stmt> StmtPtr;
 	typedef vector<StmtPtr> StmtPtrList;
 
 	// --------------------------------------------------------------------------
@@ -119,14 +122,6 @@ namespace Mond
 
 		struct KeyValue
 		{
-			KeyValue() = default;
-
-			KeyValue(KeyValue &&other)
-			{
-				std::swap(key, other.key);
-				std::swap(value, other.value);
-			}
-
 			string key;
 			ExprPtr value;
 		};
@@ -257,16 +252,6 @@ namespace Mond
 
 		struct Case
 		{
-			Case() = default;
-
-			Case(Case &&other)
-			{
-				std::swap(def, other.def);
-				std::swap(headRange, other.headRange);
-				std::swap(value, other.value);
-				std::swap(body, other.body);
-			}
-
 			bool def;
 			Range headRange;
 			ExprPtr value;

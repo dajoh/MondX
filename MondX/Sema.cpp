@@ -23,7 +23,7 @@ ScopePtr Sema::RootScope() const
 	return m_root;
 }
 
-void Sema::PushScope(Scope::Type type, AstNode *node)
+void Sema::PushScope(Scope::Type type, AstNodePtr node)
 {
 	ScopePtr newScope(new Scope());
 	newScope->type = type;
@@ -39,7 +39,7 @@ void Sema::PopScope()
 	m_curr = m_curr->parent;
 }
 
-void Sema::Declare(Decl::Type type, Range range, const string &name, AstNode *node)
+void Sema::Declare(Decl::Type type, Range range, const string &name, AstNodePtr node)
 {
 	bool builtin = false;
 	Scope *scope = m_curr;

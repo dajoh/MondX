@@ -19,7 +19,7 @@ namespace Mond
 
 		Type type;
 		Range range;
-		AstNode *node;
+		AstNodePtr node;
 	};
 
 	typedef shared_ptr<struct Scope> ScopePtr;
@@ -37,7 +37,7 @@ namespace Mond
 
 		Type type;
 		Scope *parent;
-		AstNode *node;
+		AstNodePtr node;
 		ScopePtrList children;
 		unordered_map<string, Decl> decls;
 	};
@@ -50,10 +50,10 @@ namespace Mond
 
 		ScopePtr RootScope() const;
 
-		void PushScope(Scope::Type type, AstNode *node);
+		void PushScope(Scope::Type type, AstNodePtr node);
 		void PopScope();
 
-		void Declare(Decl::Type type, Range range, const string &name, AstNode *node);
+		void Declare(Decl::Type type, Range range, const string &name, AstNodePtr node);
 
 		virtual void Visit(Expr *);
 		virtual void Visit(ExprArrayLiteral *);
@@ -101,13 +101,13 @@ namespace Mond
 	class SemaScope
 	{
 	public:
-		SemaScope(Sema &sema, Scope::Type type, AstNode *node);
+		SemaScope(Sema &sema, Scope::Type type, AstNodePtr node);
 		~SemaScope();
 	private:
 		Sema &m_sema;
 	};
 
-	inline SemaScope::SemaScope(Sema &sema, Scope::Type type, AstNode *node) : m_sema(sema)
+	inline SemaScope::SemaScope(Sema &sema, Scope::Type type, AstNodePtr node) : m_sema(sema)
 	{
 		m_sema.PushScope(type, node);
 	}

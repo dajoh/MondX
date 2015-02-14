@@ -21,6 +21,10 @@ Token &Lexer::GetToken()
 		m_token.slice = Slice(m_source.Position(), m_source.Position());
 		return m_token;
 	}
+	else if (m_char == '\r' || m_char == '\n')
+	{
+		return MakeEndOfLine();
+	}
 	else if (IsWhitespace(m_char))
 	{
 		return MakeWhitespace();
@@ -103,6 +107,31 @@ void Mond::Lexer::Advance()
 	m_char = m_source.Cur();
 	m_peek = m_source.Peek();
 	m_pos.column++;
+}
+
+Token &Lexer::MakeEndOfLine()
+{
+	m_token.type = TokEndOfLine;
+	m_token.range.beg = m_pos;
+	m_token.slice.beg = m_source.Position();
+
+	if (m_char == '\n')
+	{
+		Advance();
+	}
+	else if (m_char == '\r')
+	{
+		Advance();
+
+		if (m_char == '\n')
+		{
+			Advance();
+		}
+	}
+
+	m_token.range.end = m_pos;
+	m_token.slice.end = m_source.Position();
+	return m_token;
 }
 
 Token &Lexer::MakeWhitespace()
@@ -325,10 +354,10 @@ Token &Lexer::MakePunctuation(TokenType type)
 	m_token.type = type;
 	m_token.range = Range(m_pos, 1);
 	m_token.slice = Slice(m_source.Position());
-	
+
 	// Skip the punctuation character.
 	Advance();
-	
+
 	return m_token;
 }
 

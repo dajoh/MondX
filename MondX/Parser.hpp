@@ -35,52 +35,52 @@ namespace Mond
 
 		bool CanBeExpr();
 
-		Expr *ParseExprCore(Precedence p);
+		ExprPtr ParseExprCore(Precedence p);
 
-		Expr *ParseExprId();
-		Expr *ParseExprStringLiteral();
-		Expr *ParseExprNumberLiteral();
-		Expr *ParseExprSimpleLiteral();
+		ExprPtr ParseExprId();
+		ExprPtr ParseExprStringLiteral();
+		ExprPtr ParseExprNumberLiteral();
+		ExprPtr ParseExprSimpleLiteral();
 
-		Expr *ParseExprParens();
-		Expr *ParseExprObjectLiteral();
-		Expr *ParseExprArrayLiteral();
+		ExprPtr ParseExprParens();
+		ExprPtr ParseExprObjectLiteral();
+		ExprPtr ParseExprArrayLiteral();
 
-		Expr *ParseExprYield();
+		ExprPtr ParseExprYield();
 
-		Expr *ParseExprCall(Expr *left);
-		Expr *ParseExprIndexAccess(Expr *left);
-		Expr *ParseExprFieldAccess(Expr *left);
+		ExprPtr ParseExprCall(ExprPtr left);
+		ExprPtr ParseExprIndexAccess(ExprPtr left);
+		ExprPtr ParseExprFieldAccess(ExprPtr left);
 
-		Expr *ParseExprPrefixOp();
-		Expr *ParseExprPostfixOp(Expr *left);
-		Expr *ParseExprBinaryOp(Expr *left, Precedence p);
-		Expr *ParseExprTernaryOp(Expr *left);
+		ExprPtr ParseExprPrefixOp();
+		ExprPtr ParseExprPostfixOp(ExprPtr left);
+		ExprPtr ParseExprBinaryOp(ExprPtr left, Precedence p);
+		ExprPtr ParseExprTernaryOp(ExprPtr left);
 
-		Expr *ParseExprLambda();
-		Expr *ParseExprCondition();
-		Expr *ParseExprArraySlice(Pos pos, Expr *left, Expr *first);
+		ExprPtr ParseExprLambda();
+		ExprPtr ParseExprCondition();
+		ExprPtr ParseExprArraySlice(Pos pos, ExprPtr left, ExprPtr first);
 
 		// -------------------------------------------------------------------
 		// Statements
 		// -------------------------------------------------------------------
 
-		Stmt *ParseStmtCore();
+		StmtPtr ParseStmtCore();
 
-		Stmt *ParseStmtBlock();
-		Stmt *ParseStmtControl();
-		Stmt *ParseStmtDoWhile();
-		Stmt *ParseStmtFor();
-		Stmt *ParseStmtForeach();
-		Stmt *ParseStmtFunDecl();
-		Stmt *ParseStmtIfElse();
-		Stmt *ParseStmtReturn();
-		Stmt *ParseStmtVarDecl();
-		Stmt *ParseStmtSwitch();
-		Stmt *ParseStmtWhile();
+		StmtPtr ParseStmtBlock();
+		StmtPtr ParseStmtControl();
+		StmtPtr ParseStmtDoWhile();
+		StmtPtr ParseStmtFor();
+		StmtPtr ParseStmtForeach();
+		StmtPtr ParseStmtFunDecl();
+		StmtPtr ParseStmtIfElse();
+		StmtPtr ParseStmtReturn();
+		StmtPtr ParseStmtVarDecl();
+		StmtPtr ParseStmtSwitch();
+		StmtPtr ParseStmtWhile();
 
-		Stmt *ParseStmtNakedExpr();
-		Stmt *ParseStmtLambdaBody(bool isShorthand);
+		StmtPtr ParseStmtNakedExpr();
+		StmtPtr ParseStmtLambdaBody(bool isShorthand);
 
 		// -------------------------------------------------------------------
 		// Reused parsers
